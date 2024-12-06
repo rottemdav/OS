@@ -27,8 +27,12 @@ int main(int argc, char* argv[])
 	{
 		printf("smash > ");
 		fgets(_line, MAX_LINE_SIZE, stdin);
+		//copies the lines written in the shell to the cmd variable
 		strcpy(_cmd, _line);
+
+		//buffering
 		_cmd[strlen(_line) + 1] = '\0';
+		
 		//execute command
 
 		//initialize buffers for next command

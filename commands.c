@@ -72,3 +72,31 @@ int processReturnValueExample()
 
 	return 0;
 }
+
+
+//------ added by Rottem 06-12-24 --------//
+int showPid(Command* cmd) {
+	//check for extra arguments
+	if ( !cmd->args[1] ) {
+		printf("smash error: showpid: expceted 0 arguments\n");
+		return ERROR;
+	}
+
+	pid_t pid = getpid();
+	printf("smash pid is %d\n", pid);
+
+int pwd(Command* cmd) {
+	//check for extra arguemtns 
+	if ( !cmd->args[1] ) {
+	printf("smash error: pwd: expceted 0 arguments\n");
+	return ERROR;
+
+	char path[1024];
+
+	if (getcwd(path, sizeof(path)) != NULL) {
+		printf("%s\n", path);
+		return 1
+	}
+	
+}
+}
