@@ -1,8 +1,13 @@
 //commands.c
 #include "commands.h"
 
-//example function for parsing commands
-int parseCmdExample(char* line)
+typedef struct cmd {
+	char* cmd;
+	char* args[MAX_ARGS];
+} Command;
+
+// Function that parses command input and return a command struct 
+ int parseCmd(char* line, Command* outCmd)
 {
 	char* delimiters = " \t\n"; //parsing should be done by spaces, tabs or newlines
 	char* cmd = strtok(line, delimiters); //read strtok documentation - parses string by delimiters
@@ -19,17 +24,20 @@ int parseCmdExample(char* line)
 			break;
 		numArgs++;
 	}
-	/*
-	At this point cmd contains the command string and the args array contains
-	the arguments. You can return them via struct/class, for example in C:
-		typedf struct
-		{
-			char* cmd;
-			char* args[MAX_ARGS];
-		} Command;
-	Or continue the execution from here.
-	*/
+
+	// // Initialize a new command
+	// Command* newCmd = (Command*)malloc(sizeof(Command));
+	// if (!newCmd) return NULL;
+	
+	outCmd->cmd = (char*)malloc(sizeof(char)*strlen(args[0])+1);
+	if (!newCmd->cmd) return NULL;
+	strlcpy()
+	for (int i = 1; i < numArgs; i++){
+		
+	}
+
 }
+
 
 //example function for getting/setting return value of a process.
 #include <unistd.h>

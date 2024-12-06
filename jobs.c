@@ -3,7 +3,7 @@
 
 #define NUM_JOBS 100
 
-struct Job {
+typedef struct job {
     int jobNum; // job id
     bool isFree; // is the 
     pid_t jobPid;
@@ -97,11 +97,11 @@ void printJobs(Jobs** jobsTable) {
     }
 }
 
-int continueJob(int jobNum, Jobs** jobsTable) {
+void continueJob(int jobNum, Jobs** jobsTable) {
     jobsTable[jobNums]->isStoped = false;
 }
 
-int deleteJobs(int jobNum, Jobs** jobsTable) {
+status deleteJobs(int jobNum, Jobs** jobsTable) {
     if (!jobsTable[jobNum]->isFree) {
         return ERROR;
     }

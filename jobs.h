@@ -15,7 +15,7 @@ enum status {
 } status;
 
 // definition of the data structure that will hold the jobs 
-struct void* Job;
+typedef struct job Job;
 
 /*=============================================================================
 * global functions
@@ -25,13 +25,13 @@ struct void* Job;
 Job* createTable();
 
 // Check that all jobs are up-to-date and working properly
-void checkJobs(Job** jobTable);
+status checkJobs(Job** jobTable);
 
 // deallocate the memory used for the table
 void destroyTable(Job* jobTable);
 
 // add a new process that was switched to bg or stopped - as a new job
-void addJob(pid_t jobPid, char* cmd);
+status addJob(pid_t jobPid, char* cmd);
 
 // prints the table content
 void printJobs(Jobs** jobsTable);
@@ -40,6 +40,6 @@ void printJobs(Jobs** jobsTable);
 void continueJob(int jobNum);
 
 // the process returning to the fg and needs to be deleted from the table
-int deleteJob(int jobNum, Job** jobsTable); 
+status deleteJob(int jobNum, Job** jobsTable); 
 
 #endif //__JOBS_H__
