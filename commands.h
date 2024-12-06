@@ -5,6 +5,7 @@
 =============================================================================*/
 #include <stdlib.h> //for NULL
 #include "signals.h"
+#include "jobs.h"
 
 #define MAX_LINE_SIZE 80
 #define MAX_ARGS 20
@@ -12,9 +13,12 @@
 /*=============================================================================
 * error definitions
 =============================================================================*/
-enum ParsingError
+enum ParsingStatus
 {
-	INVALID_COMMAND = 0,
+	SUCCESS = 0,
+	INVALID_COMMAND = 1,
+	MEM_ALLOC_ERR = 2,
+	
 	//feel free to add more values here
 };
 
@@ -26,27 +30,29 @@ typedef struct cmd Command;
 // Will parse the command into sections
 int parseCommand(char* line, Command* outCmd);
 
+void freeCommand(Command* cmd);
+
 // Will get a command after parsing and handle according to needs
-void handleCmd(Command* command);
+int handleCmd(Command* cmd, Job** jobTable);
 
-void handleShowPid();
+int handleShowPid(Command* cmd);
 
-void handlePwd();
+int handlePwd(Command* cmd);
 
-void handleCd(char* path);
+int handleCd(Command* cmd);
 
-void handleJobs();
+void handleJobs(Command* cmd);
 
-void handleKill(int sig, int jobId);
+void handleKill(Command* cmd);
 
-void handleFg(int jobId);
+void handleFg(Command* cmd);
 
-void handleBg(int jobId);
+void handleBg(Command* cmd);
 
-void handleQuit(bool kill);
+void handleQuit(Command* cmd);
 
-void handleDiff(char* path1, char* path2);
+void handleDiff(Command* cmd);
 
-void handleExternal(Command cmd);
+void handleExternal(Command* cmd);
 
 #endif //__COMMANDS_H__

@@ -99,79 +99,6 @@ int handleCmd(Command* cmd, Job** jobTable){
 	// Check if run in background and add to job table
 	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs - 1], "%") == 0){
 		isBg = true;
-		free(cmd->args[cmd->numArgs - 1]);
-		cmd->args[cmd->numArgs - 1] = NULL;
-		cmd->numArgs--;
-	}
-
-	pid_t pid = fork();
-	
-	if (pid < 0) {
-		perror("smash error: fork failed");
-		exit(EXIT_FAILURE);
-	} else if (pid == 0){
-		
-		if (isBg) setsid();
-
-		if (strcmp(cmd->cmd, "cd") == 0){
-			handleCd(cmd);
-		}
-		else if (strcmp(cmd->cmd, "showpid") == 0){
-			handleShowPid(cmd);
-		}
-		else if (strcmp(cmd->cmd, "pwd") == 0){
-			handlePwd(cmd);
-		}
-		else if (strcmp(cmd->cmd, "jobs") == 0){
-			handleJobs(cmd);
-		}
-		else if (strcmp(cmd->cmd, "kill") == 0){
-			handleKill(cmd);
-		}
-		else if (strcmp(cmd->cmd, "fg") == 0){
-			handleFg(cmd);
-		}
-		else if (strcmp(cmd->cmd, "bg") == 0){
-			handleBg(cmd);
-		}
-		else if (strcmp(cmd->cmd, "quit") == 0){
-			handleQuit(cmd);
-		}
-		else if (strcmp(cmd->cmd, "diff") == 0){
-			handleDiff(cmd);
-		}
-		else {
-			handleExternal(cmd);
-		}
-		
-		exit(EXIT_SUCCESS);
-
-	} else {
-		if (isBg) {
-			addJob(jobTable, pid, cmd->cmd);
-		} else {
-			int status;
-			waitpid(pid, &status, 0);
-
-			// Child process finished and now we can continue to free command memory
-			// !!! watch for memory leaks
-			freeCommand(cmd);
-		}
-	} 
-	
-	return SUCCESS;
-}
-
-int handleCmd(Command* cmd, Job** jobTable){
-	
-	if (!cmd || !jobTable) return INVALID_COMMAND;
-	checkJobs(jobsTable);
-	
-	bool isBg = false;
-
-	// Check if run in background and add to job table
-	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs - 1], "%") == 0){
-		isBg = true;
 	}
 
 	pid_t pid = fork();
@@ -273,10 +200,6 @@ int handleCd(Command* cmd) {
         }
     }
 }
-// ------------- examp		
-
-
-
 
 	// ------------- example from the original commands.c file ------------// 
 

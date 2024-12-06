@@ -12,7 +12,7 @@ typedef struct job {
     bool isStoped;
 } Job;
 
-Job* createTable() {
+Job** createTable() {
     // Initializing array of job pointers
     Job** jobsTable = (Job**)malloc(NUM_JOBS * sizeof(Job*));
     
@@ -21,6 +21,16 @@ Job* createTable() {
 
     // Set all jobs as free and not stopped
     for (int i = 0; i < NUM_JOBS; i++){
+        
+        // Allocate memory for each job in array
+        jobsTable[i] = (Job*)malloc(sizeof(Job));
+
+        // Check allocation, if failed at any point, delete the table
+        if (!jobsTable[i]){
+            destroyTable(jobsTable);
+            return NULL;
+        }
+        
         jobsTable[i].jobNum = i + 1;
         jobsTable[i].isFree = true;
         jobsTable[i].jobPid = -1;
@@ -88,9 +98,9 @@ void printJobs(Jobs** jobsTable) {
     for (int i = 0; i < NUM_JOBS; ) {
         if (!jobsTable[i].isFree) {
             printf("[%d] %s: %d %ld %s" ,
-                     jobsTable[i].jobNum,
+                     jobsTable[i]->jobNum,
                      jobsTable[i]->cmdName,
-                     jobsTable[i].jobPid,
+                     jobsTable[i]->jobPid,
                      (long)(timediff(jobsTable[i].startTime, time(NULL)),
                      (jobsTable[i].isStopped) ?  "Stopped"  : "" ));
         }
@@ -105,22 +115,22 @@ status deleteJobs(int jobNum, Jobs** jobsTable) {
     if (!jobsTable[jobNum]->isFree) {
         return ERROR;
     }
-    jobsTable[jobNum].isFree=true;
-    jobsTable[jobNum].jobPis = -1;
+    jobsTable[jobNum]->isFree=true;
+    jobsTable[jobNum]->jobPis = -1;
     jobsTable[jobNum]->cmdName = NULL;
-    jobsTable[jobNum].startTime = time(NULL);
-    jobsTable[jobNum].isStopped = false;
+    jobsTable[jobNum]->startTime = time(NULL);
+    jobsTable[jobNum]->isStopped = false;
     return SUCCESS;
 }
 
 // all jobs are terminated
-void* destroyTable(Job* jobTable){
+void* destroyTable(Job* jobsTable){
+    if (!jobsTable) return;
 
-    for (int i=0; i < 100; i++){
-        if (jobsTable[i] != NULL){
-            if (jobsTable[i]->cmdName != NULL){
-                free(jobsTable[i]->cmdName);
-            }
+    for (int i = 0; i < NUM_JOBS; i++){
+        if (jobsTable[i]){
+            if (jobsTable[i]->cmdName) free(jobsTable[i]->cmdName);
+            free(jobsTable[i]);
         }
         free(jobsTable);
     }
