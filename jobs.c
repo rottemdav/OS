@@ -112,18 +112,18 @@ void printJobs(Jobs** jobsTable) {
 }
 
 void continueJob(int jobNum, Jobs** jobsTable) {
-    jobsTable[jobNums]->isStopped = false;
+    jobsTable[jobNums - 1]->isStopped = false;
 }
 
 status deleteJobs(int jobNum, Jobs** jobsTable) {
-    if (!jobsTable[jobNum]->isFree) {
+    if (!jobsTable[jobNum - 1]->isFree) {
         return ERROR;
     }
-    jobsTable[jobNum]->isFree=true;
-    jobsTable[jobNum]->jobPis = -1;
-    jobsTable[jobNum]->cmdName = NULL;
-    jobsTable[jobNum]->startTime = time(NULL);
-    jobsTable[jobNum]->isStopped = false;
+    jobsTable[jobNum - 1]->isFree=true;
+    jobsTable[jobNum - 1]->jobPis = -1;
+    jobsTable[jobNum - 1]->cmdName = NULL;
+    jobsTable[jobNum - 1]->startTime = time(NULL);
+    jobsTable[jobNum - 1]->isStopped = false;
     return SUCCESS;
 }
 
