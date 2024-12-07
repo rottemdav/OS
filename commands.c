@@ -4,6 +4,7 @@
 typedef struct cmd {
 	char* cmd;
 	char* args[MAX_ARGS];
+	char* cmdFull;
 	int numArgs;
 } Command;
 
@@ -13,12 +14,23 @@ char path[1024] = NULL;
 
 // Function that parses command input and return a command struct 
  int parseCmd(char* line, Command* outCmd)
-{
+{	
+	// ----------- Check inputs --------------- // 
+	// Check the given line string
+	if (!line) return INVALID_COMMAND;
+	else {
+		if (strlen(line) > MAX_LINE_SIZE) return INVALID_COMMAND;
+	}
+	// Check that outCmd pointer is not null
+	if (!outCmd) return MEM_ALLOC_ERR;
+
+	// ----------- Parsing command  --------------- //
 	char* delimiters = " \t\n"; //parsing should be done by spaces, tabs or newlines
 	char* cmd = strtok(line, delimiters); //read strtok documentation - parses string by delimiters
-	if(!cmd)
-		return INVALID_COMMAND; //this means no tokens were found, most like since command is invalid
 	
+	//this means no tokens were found, most like since command is invalid
+	if (!cmd) return INVALID_COMMAND; 
+
 	char* args[MAX_ARGS];
 	int numArgs = 0;
 	args[0] = cmd; //first token before spaces/tabs/newlines should be command name
@@ -30,11 +42,20 @@ char path[1024] = NULL;
 		numArgs++;
 	}
 
+	// ----------- Returning command --------------- //
 	// Allocate memory and copy command string to outCmd
+
+	// Copy the whole user input (full command)
+	outCmd->cmdFull = (char*)malloc(sizeof(char)*strlen(line) + 1);
+	if (!(outCmd->cmdFull)) return MEM_ALLOC_ERR;
+	strlcpy(outCmd->cmdFull, line);
+
+	// Copy only the command name
 	outCmd->cmd = (char*)malloc(sizeof(char)*strlen(args[0]) + 1);
 	if (!outCmd->cmd) return MEM_ALLOC_ERR;
 	strlcpy(outCmd->cmd, args[0], strlen(args[0]) + 1);
 	
+	// Set number of arguments of the user's command
 	outCmd->numArgs = numArgs;
 
 	// Allocate memory and copy command arguments to outCmd
@@ -53,8 +74,11 @@ char path[1024] = NULL;
 	return SUCCESS;
 }
 
+
 void freeCommand(Command* cmd){
+	if (!cmd) return;
 	free(cmd->cmd); // Free the command string
+	free(cmd->cmdFull); // Free the full commnad string
     for (int i = 0; i < MAX_ARGS; i++) {
         if (cmd->args[i]) {
             free(cmd->args[i]); // Free each argument
@@ -75,6 +99,7 @@ int handleShowPid(Command* cmd) {
 
 }
 
+
 int handlePwd(Command* cmd) {
 	//check for extra arguemtns 
 	if ( !cmd->args[1] ) {
@@ -88,13 +113,14 @@ int handlePwd(Command* cmd) {
 	}
 }
 
+
 int handleCmd(Command* cmd, Job** jobTable){
 	
 	if (!cmd || !jobTable) return INVALID_COMMAND;
 	checkJobs(jobsTable);
 	
 	bool isBg = false;
-
+	
 	// Check if run in background and add to job table
 	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs - 1], "%") == 0){
 		isBg = true;
@@ -176,6 +202,7 @@ int handleCmd(Command* cmd, Job** jobTable){
 	return SUCCESS;
 }
 
+
 int handleCd(Command* cmd) {
     // more than 1 argument check
 	if (!cmd->cmd || cmd.numArgs>1) {
@@ -220,11 +247,14 @@ int handleCd(Command* cmd) {
 
 
 int handleKill(Command* cmd, Job** jobTable) {
-	if (!cmd || !(cmd->cmd) || !(cmd->args[1]) || !(cmd->args[2])) return;
+	if (!cmd || !(cmd->cmd) || !(cmd->args[1]) || !(cmd->args[2])){
+		perror("\nsmash error: kill: invalid arguments");
+		return COMMAND_FAILED;
+	}
 
 	// Check arguments
 	if (cmd->numArgs != 3) { // check amount of arguments (command, signum, id)
-		perror("smash error: kill: invalid arguments");
+		perror("\nsmash error: kill: invalid arguments");
 		return COMMAND_FAILED;
 	}
 	// parse signal num
@@ -233,13 +263,13 @@ int handleKill(Command* cmd, Job** jobTable) {
 	token = strtok(cmd->args[1], delim);
 	
 	if (token == NULL){
-		perror("smash error: kill: invalid arguments");
+		perror("\nsmash error: kill: invalid arguments");
 		return COMMAND_FAILED;
 	}
 
 	int signum = atoi(token);
 	if (signum < 1 || signum > 31) { // check if signal num is legal (1-31)
-		perror("smash error: kill: invalid arguments");
+		perror("\nsmash error: kill: invalid arguments");
 		return COMMAND_FAILED;
 	}
 
@@ -247,7 +277,7 @@ int handleKill(Command* cmd, Job** jobTable) {
 	int jobId = atoi(cmd->args[2]);
 
 	if (jobId < 1 || jobId > NUM_JOBS){ // Check if job argument is valid
-		perror("smash error: kill: invalid arguments");
+		perror("\nsmash error: kill: invalid arguments");
 		return COMMAND_FAILED;
 	}
 
@@ -261,14 +291,86 @@ int handleKill(Command* cmd, Job** jobTable) {
 			return COMMAND_FAILED;
 		}
 	}
-	printf("signal %d was sent to pid %d",signum ,jobTable[jobId - 1]->jobId);
+	printf("\nsignal %d was sent to pid %d",signum ,jobTable[jobId - 1]->jobId);
 	return SUCCESS;
 }
 
-int handleBg(Command* cmd){
-	
+
+int handleBg(Command* cmd, Job** jobTable){
+	// check arguments
+	if (!cmd || !jobTable || cmd->numArgs > 2) {
+		perror("\nsmash error: kill: invalid arguments");
+		return COMMAND_FAILED;
+	}
+
+	if (cmd->args[1] != NULL){ // The user wants to stop a specific job
+		int jobId = atoi(cmd->args[1]);
+		if (jobId < 1 || jobId > NUM_JOBS){ // Check if job argument is valid
+			perror("\nsmash error: kill: invalid arguments");
+			return COMMAND_FAILED;
+		}
+
+		// check if job exists
+		if (jobTable[jobId - 1]->isFree) {
+			perror("\nsmash error: bg: job id %d does not exist", jobId);
+			return COMMAND_FAILED;
+		} else {
+			// check if job is stopped
+			if (!(jobTable[jobId - 1]->isStopped)) {
+				perror("\nsmash error: bg: job id %d is already in background", jobId);
+				retrun COMMAND_FAILED;
+			}
+			
+			// print the command and pid 
+			printf("\n%s: %d", cmd->cmdFull, jobTable[jobId - 1]->jobPid);
+			
+			// set as not stopped in table
+			continueJob(jobId, jobTable);
+
+			// send signal to continue
+			if (kill(jobTable[jobId - 1]->jobPid, SIGCONT) == -1){
+				perror("\nsmash error: kill failed");
+				return COMMAND_FAILED;
+			}
+			
+			return SUCCESS;
+		}
+	} else {
+		for (int i = NUM_JOBS - 1; i >= 0; i--){ // Check for jobs from max
+			if (jobTable[i]->isFree) continue;
+			else {
+				if (jobTable[i]->isStopped){ // if job is stopped
+					
+					// print command nad pid
+					printf("\n%s: %d", cmd->cmdFull, jobTable[i]->jobPid);
+					
+					// set as not stopped in table (i+1 because we send jobId (1-100))
+					continueJob(i+1, jobTable);
+					
+					// send signal
+					if (kill(jobTable[i]->jobPid, SIGCONT) == -1){
+						perror("\nsmash error: kill failed");
+						return COMMAND_FAILED;
+					}
+
+					return SUCCESS;
+				}
+			} 
+		}
+		perror("\nsmash error: bg: there are no stopped jobs to resume");
+		return SUCCESS;
+	}
 }
 
+
+int handleDiff(Command* cmd){
+	// Check arguments
+
+	// Check if path exist
+
+	// Check if file exists in path
+
+}
 	// ------------- example from the original commands.c file ------------// 
 
 //example function for getting/setting return value of a process.

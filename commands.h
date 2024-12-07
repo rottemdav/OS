@@ -46,7 +46,7 @@ int handleKill(Command* cmd, Job** jobTable);
 
 int handleFg(Command* cmd);
 
-int handleBg(Command* cmd);
+int handleBg(Command* cmd, Job** jobTable);
 
 int handleQuit(Command* cmd);
 
