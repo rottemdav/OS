@@ -1,15 +1,6 @@
 #include "jobs.h"
 #include <stdlib.h> //for NULL
 
-typedef struct job {
-    int jobNum; // job id
-    bool isFree; // is the 
-    pid_t jobPid;
-    char* cmdName;
-    time_t startTime;
-    bool isStopped;
-} Job;
-
 Job** createTable() {
     // Initializing array of job pointers
     Job** jobsTable = (Job**)malloc(NUM_JOBS * sizeof(Job*));
@@ -39,7 +30,7 @@ Job** createTable() {
     return jobsTable;
 }
 
-status checkJobs(Job** jobsTable){
+int checkJobs(Job** jobsTable){
     if (!jobsTable) return ERROR;
     else{
         for (int i = 0; i < NUM_JOBS; i++){
@@ -67,7 +58,7 @@ status checkJobs(Job** jobsTable){
 }
 
 // Assumption: pid is legal upon using function
-status addJob(Job** jobsTable; pid_t jobPid, char* cmd){
+int addJob(Job** jobsTable, pid_t jobPid, char* cmd){
     
     // Check if command or job table are null
     if (!cmd || !jobsTable) return ERROR;
@@ -78,6 +69,7 @@ status addJob(Job** jobsTable; pid_t jobPid, char* cmd){
     pid_t result = waitpid(jobPid, &status, WNOHANG | WUNTRACED);
     bool isStopped = (result > 0 && WIFSTOPPED(status));
 
+    // <----------- what if is this? ------>
     else {
         for (int i=0; i < NUM_JOBS; i++){
             if (!jobsTable[i]->isFree) continue;
@@ -98,29 +90,29 @@ status addJob(Job** jobsTable; pid_t jobPid, char* cmd){
    return SUCCESS;
 }
 
-void printJobs(Jobs** jobsTable) {
-    for (int i = 0; i < NUM_JOBS; ) {
-        if (!jobsTable[i]->isFree) {
+void printJob(Job** jobsTable, int idx) {
+    //for (int i = 0; i < NUM_JOBS; i++) {
+        if (!jobsTable[idx]->isFree) {
             printf("[%d] %s: %d %ld %s" ,
-                     jobsTable[i]->jobNum,
-                     jobsTable[i]->cmdName,
-                     jobsTable[i]->jobPid,
-                     (long)(timediff(jobsTable[i]->startTime, time(NULL)),
-                     (jobsTable[i]->isStopped) ?  "Stopped"  : "" ));
+                     jobsTable[idx]->jobNum,
+                     jobsTable[idx]->cmdName,
+                     jobsTable[idx]->jobPid,
+                     (long)(timediff(jobsTable[idx]->startTime, time(NULL)),
+                     (jobsTable[idx]->isStopped) ?  "Stopped"  : "" ));
         }
-    }
+    //}
 }
 
-void continueJob(int jobNum, Jobs** jobsTable) {
-    jobsTable[jobNums - 1]->isStopped = false;
+void continueJob(int jobNum, Job** jobsTable) {
+    jobsTable[jobNum - 1]->isStopped = false;
 }
 
-status deleteJobs(int jobNum, Jobs** jobsTable) {
+int deleteJobs(int jobNum, Job** jobsTable) {
     if (!jobsTable[jobNum - 1]->isFree) {
         return ERROR;
     }
     jobsTable[jobNum - 1]->isFree=true;
-    jobsTable[jobNum - 1]->jobPis = -1;
+    jobsTable[jobNum - 1]->jobPid = -1;
     jobsTable[jobNum - 1]->cmdName = NULL;
     jobsTable[jobNum - 1]->startTime = time(NULL);
     jobsTable[jobNum - 1]->isStopped = false;
@@ -128,7 +120,7 @@ status deleteJobs(int jobNum, Jobs** jobsTable) {
 }
 
 // all jobs are terminated
-void* destroyTable(Job* jobsTable){
+void destroyTable(Job** jobsTable){
     if (!jobsTable) return;
 
     for (int i = 0; i < NUM_JOBS; i++){
