@@ -88,7 +88,6 @@ int handlePwd(Command* cmd) {
 	}
 }
 
-// 
 int handleCmd(Command* cmd, Job** jobTable){
 	
 	if (!cmd || !jobTable) return INVALID_COMMAND;
@@ -99,137 +98,82 @@ int handleCmd(Command* cmd, Job** jobTable){
 	// Check if run in background and add to job table
 	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs - 1], "%") == 0){
 		isBg = true;
-		free(cmd->args[cmd->numArgs - 1]);
-		cmd->args[cmd->numArgs - 1] = NULL;
-		cmd->numArgs--;
 	}
 
 	pid_t pid = fork();
 	
 	if (pid < 0) {
-		perror("smash error: fork failed");
+		perror("\nsmash error: fork failed");
 		exit(EXIT_FAILURE);
 	} else if (pid == 0){
-		
-		if (isBg) setsid();
+		// Return status to check if the desired command was succesfull or not
+		int status; 
+
+		if (isBg){
+			// Create a new process group for the background process
+			setpgrp();
+		} else {
+			// Ensure the foreground process is in the same group as the parent
+        	setpgid(0, getppid());
+		}
 
 		if (strcmp(cmd->cmd, "cd") == 0){
-			handleCd(cmd);
+			status = handleCd(cmd);
 		}
 		else if (strcmp(cmd->cmd, "showpid") == 0){
-			handleShowPid(cmd);
+			status = handleShowPid(cmd);
 		}
 		else if (strcmp(cmd->cmd, "pwd") == 0){
-			handlePwd(cmd);
+			status = handlePwd(cmd);
 		}
 		else if (strcmp(cmd->cmd, "jobs") == 0){
-			handleJobs(cmd);
+			status = handleJobs(cmd);
 		}
 		else if (strcmp(cmd->cmd, "kill") == 0){
-			handleKill(cmd);
+			status = handleKill(cmd, jobTable);
 		}
 		else if (strcmp(cmd->cmd, "fg") == 0){
-			handleFg(cmd);
+			status = handleFg(cmd);
 		}
 		else if (strcmp(cmd->cmd, "bg") == 0){
-			handleBg(cmd);
+			status = handleBg(cmd);
 		}
 		else if (strcmp(cmd->cmd, "quit") == 0){
-			handleQuit(cmd);
+			status = handleQuit(cmd);
 		}
 		else if (strcmp(cmd->cmd, "diff") == 0){
-			handleDiff(cmd);
+			status = handleDiff(cmd);
 		}
 		else {
-			handleExternal(cmd);
+			status = handleExternal(cmd);
 		}
-		
+
+		if (status != SUCCESS){
+			exit(EXIT_FAILURE);
+		}
+
 		exit(EXIT_SUCCESS);
 
 	} else {
 		if (isBg) {
 			addJob(jobTable, pid, cmd->cmd);
 		} else {
+			// Foreground process: Set terminal control to the child process
+        	tcsetpgrp(STDIN_FILENO, pid);
+
 			int status;
-			waitpid(pid, &status, 0);
+			pid_t fg_pid = waitpid(pid, &status, WUNTRACED);
 
-			// Child process finished and now we can continue to free command memory
-			// !!! watch for memory leaks
-			freeCommand(cmd);
+			if (WIFSTOPPED(status)) addJob(jobTable, fg_pid, cmd->cmd);
+
+			// Restore terminal control to the shell
+			tcsetpgrp(STDIN_FILENO, getpid());
 		}
-	} 
-	
-	return SUCCESS;
-}
-
-int handleCmd(Command* cmd, Job** jobTable){
-	
-	if (!cmd || !jobTable) return INVALID_COMMAND;
-	checkJobs(jobsTable);
-	
-	bool isBg = false;
-
-	// Check if run in background and add to job table
-	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs - 1], "%") == 0){
-		isBg = true;
 	}
-
-	pid_t pid = fork();
 	
-	if (pid < 0) {
-		perror("smash error: fork failed");
-		exit(EXIT_FAILURE);
-	} else if (pid == 0){
-		
-		if (isBg){
-			// Detach from parent terminal
-			setsid();
-		}
-
-		if (strcmp(cmd->cmd, "cd") == 0){
-			handleCd(cmd);
-		}
-		else if (strcmp(cmd->cmd, "showpid") == 0){
-			handleShowPid(cmd);
-		}
-		else if (strcmp(cmd->cmd, "pwd") == 0){
-			handlePwd(cmd);
-		}
-		else if (strcmp(cmd->cmd, "jobs") == 0){
-			handleJobs(cmd);
-		}
-		else if (strcmp(cmd->cmd, "kill") == 0){
-			handleKill(cmd);
-		}
-		else if (strcmp(cmd->cmd, "fg") == 0){
-			handleFg(cmd);
-		}
-		else if (strcmp(cmd->cmd, "bg") == 0){
-			handleBg(cmd);
-		}
-		else if (strcmp(cmd->cmd, "quit") == 0){
-			handleQuit(cmd);
-		}
-		else if (strcmp(cmd->cmd, "diff") == 0){
-			handleDiff(cmd);
-		}
-		else {
-			handleExternal(cmd);
-		}
-
-	} else {
-		if (isBg) {
-			addJob(jobTable, pid, cmd->cmd);
-		} else {
-			int status;
-			waitpid(pid, &status, 0);
-		}
-	} 
-	
-	
-	
-
-
+	// Will free the command string and args, will still require main to free pointer
+	freeCommand(cmd); 
+	return SUCCESS;
 }
 
 int handleCd(Command* cmd) {
@@ -272,11 +216,58 @@ int handleCd(Command* cmd) {
             return SUCCESS;
         }
     }
+}	
+
+
+int handleKill(Command* cmd, Job** jobTable) {
+	if (!cmd || !(cmd->cmd) || !(cmd->args[1]) || !(cmd->args[2])) return;
+
+	// Check arguments
+	if (cmd->numArgs != 3) { // check amount of arguments (command, signum, id)
+		perror("smash error: kill: invalid arguments");
+		return COMMAND_FAILED;
+	}
+	// parse signal num
+	char* delim = "-";
+	char* token;
+	token = strtok(cmd->args[1], delim);
+	
+	if (token == NULL){
+		perror("smash error: kill: invalid arguments");
+		return COMMAND_FAILED;
+	}
+
+	int signum = atoi(token);
+	if (signum < 1 || signum > 31) { // check if signal num is legal (1-31)
+		perror("smash error: kill: invalid arguments");
+		return COMMAND_FAILED;
+	}
+
+	// check if job exist
+	int jobId = atoi(cmd->args[2]);
+
+	if (jobId < 1 || jobId > NUM_JOBS){ // Check if job argument is valid
+		perror("smash error: kill: invalid arguments");
+		return COMMAND_FAILED;
+	}
+
+	// send signal if job exist on job table
+	if (jobTable[jobId - 1]->isFree) {
+		perror("job id %d does not exist", jobId);
+		return COMMAND_FAILED;
+	} else {
+		if (kill(jobTable[jobId - 1]->jobPid, signum) == -1){
+			perror("\nsmash error: kill failed");
+			return COMMAND_FAILED;
+		}
+	}
+	printf("signal %d was sent to pid %d",signum ,jobTable[jobId - 1]->jobId);
+	return SUCCESS;
 }
-// ------------- examp		
 
-
-
+int handleBg(Command* cmd){
+	
+}
 
 	// ------------- example from the original commands.c file ------------// 
 

@@ -13,13 +13,12 @@
 /*=============================================================================
 * error definitions
 =============================================================================*/
-enum ParsingStatus
+enum cmdStatus
 {
 	SUCCESS = 0,
 	INVALID_COMMAND = 1,
 	MEM_ALLOC_ERR = 2,
-	
-	//feel free to add more values here
+	COMMAND_FAILED = 3,
 };
 
 /*=============================================================================
@@ -41,18 +40,18 @@ int handlePwd(Command* cmd);
 
 int handleCd(Command* cmd);
 
-void handleJobs(Command* cmd);
+int handleJobs(Command* cmd);
 
-void handleKill(Command* cmd);
+int handleKill(Command* cmd, Job** jobTable);
 
-void handleFg(Command* cmd);
+int handleFg(Command* cmd);
 
-void handleBg(Command* cmd);
+int handleBg(Command* cmd);
 
-void handleQuit(Command* cmd);
+int handleQuit(Command* cmd);
 
-void handleDiff(Command* cmd);
+int handleDiff(Command* cmd);
 
-void handleExternal(Command* cmd);
+int handleExternal(Command* cmd);
 
 #endif //__COMMANDS_H__
