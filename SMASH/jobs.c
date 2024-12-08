@@ -46,7 +46,7 @@ int checkJobs(Job** jobsTable){
             else {
                 if (WIFSTOPPED(status)) continue; // process stopped
                 if (WIFEXITED(status) || WIFSIGNALED(status)){ // exited / terminated
-                    if (deleteJob(jobsTable[i]->jobNum, jobsTable) == ERROR){
+                    if (deleteJobs(jobsTable[i]->jobNum, jobsTable) == ERROR){
                         return ERROR;
                     }
                 } 

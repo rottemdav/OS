@@ -53,6 +53,6 @@ void printJob(Job** jobsTable, int idx);
 void continueJob(int jobNum, Job** jobsTable);
 
 // the process returning to the fg and needs to be deleted from the table
-int deleteJob(int jobNum, Job** jobsTable); 
+int deleteJobs(int jobNum, Job** jobsTable); 
 
 #endif //__JOBS_H__
