@@ -3,14 +3,7 @@
 #include "commands.h"
 #include "jobs.h"
 
-typedef struct cmd {
-	char* cmd;
-	char* args[MAX_ARGS];
-	char* cmdFull;
-	int numArgs;
-} Command;
-
-char path[1024];
+char path[1024] ="";
 
 // --------- commands managment functions ---------- //
 
@@ -54,7 +47,10 @@ char path[1024];
 
 	// Copy only the command name
 	outCmd->cmd = (char*)malloc(sizeof(char)*strlen(args[0]) + 1);
-	if (!outCmd->cmd) return MEM_ALLOC_ERR;
+	if (!outCmd->cmd){
+		free(outCmd->cmdFull);
+		return MEM_ALLOC_ERR;
+	} 
 	strlcpy(outCmd->cmd, args[0], strlen(args[0]) + 1);
 	
 	// Set number of arguments of the user's command
@@ -88,87 +84,142 @@ void freeCommand(Command* cmd){
     }
 }
 
+bool isBuiltInCmd(Command* cmd){
+	// Check if the command is one of the built-in commands
+	if (strcmp(cmd->cmd, "cd") == 0       ||
+		strcmp(cmd->cmd, "showpid") == 0  ||
+		strcmp(cmd->cmd, "pwd") == 0	  ||
+		strcmp(cmd->cmd, "jobs") == 0	  ||
+		strcmp(cmd->cmd, "kill") == 0	  ||
+		strcmp(cmd->cmd, "fg") == 0		  ||
+		strcmp(cmd->cmd, "bg") == 0 	  ||
+		strcmp(cmd->cmd, "quit") == 0	  ||
+		strcmp(cmd->cmd, "diff") == 0){ 
+		return true; 
+	} 
+	
+	return false;
+}
+
+int chooseBuiltIn(Command* cmd, Job** jobsTable){
+	// Check input
+	if (!cmd || !(cmd->cmd) || !jobsTable) return COMMAND_FAILED;
+
+	// Chose between built-in commands 
+	if (strcmp(cmd->cmd, "cd") == 0){
+		return handleCd(cmd);
+	}
+	else if (strcmp(cmd->cmd, "showpid") == 0){
+		return handleShowPid(cmd);
+	}
+	else if (strcmp(cmd->cmd, "pwd") == 0){
+		return handlePwd(cmd);
+	}
+	else if (strcmp(cmd->cmd, "jobs") == 0){
+		return handleJobs(cmd, jobTable);
+	}
+	else if (strcmp(cmd->cmd, "kill") == 0){
+		return handleKill(cmd, jobsTable);
+	}
+	else if (strcmp(cmd->cmd, "fg") == 0){
+		return handleFg(cmd, jobTable);
+	}
+	else if (strcmp(cmd->cmd, "bg") == 0){
+		return handleBg(cmd, jobsTable);
+	}
+	else if (strcmp(cmd->cmd, "quit") == 0){
+		return handleQuit(cmd, jobTable);
+	}
+	else if (strcmp(cmd->cmd, "diff") == 0){
+		return handleDiff(cmd);
+	}
+
+	return COMMAND_FAILED;
+}
 
 int handleCmd(Command* cmd, Job** jobsTable){
 	
+	// Check inputs
 	if (!cmd || !jobsTable) return INVALID_COMMAND;
+	
+	// Update job table
 	checkJobs(jobsTable);
 	
+	// Check if command should run in background, if so remove the % argument
 	bool isBg = false;
-	
-	// Check if run in background and add to job table
 	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs - 1], "%") == 0){
 		isBg = true;
+		free(cmd->args[cmd->numArgs - 1]);
+		cmd->args[cmd->numArgs - 1] = NULL;
+		cmd->numArgs;
 	}
 
-	pid_t pid = fork();
+	// Check if command is one of the built-in commands
+	bool isBuiltIn = isBuiltInCmd(cmd);
 	
-	if (pid < 0) {
-		perror("\nsmash error: fork failed");
-		exit(EXIT_FAILURE);
-	} else if (pid == 0){
-		// Return status to check if the desired command was succesfull or not
-		int status; 
+	/* Scenariouus by order:
+		1. If not in background and built-in -> run built-in and return
+		2. If not in background and external -> fork:
+									child: runs external
+									parent: waits for child to finish and return
+		3. If in background and built-in -> fork:
+									child: runs built-in
+									parent: add to job table and wait, return at exit
+		4. If in background and external -> fork
+									child: runs external
+									parent: add to job table and return 
+	*/
+	if (!isBg){ // not in background
+		
+		if (isBuiltIn) { // build-in commaand
+			chooseBuiltIn(cmd);
+		} else { // external command
+			pid_t pid = fork();
 
-		if (isBg){
-			// Create a new process group for the background process
-			setpgrp();
+			if (pid < 0){
+				perror("\nsmash error: fork failed");
+				exit(1);
+			} else if (pid == 0){
+				// child process
+				setpgrp(); // Ensures that signals won't reach unless used kill
+				int cmdStatus = handleExternal();
+				if (cmdStatus != SUCCESS) exit(1);
+
+				exit(0);
+			} else {
+				// parent process
+				addJob(jobsTable, pid, cmd->cmd);
+				int status;
+				
+				// wait for child process to finish
+				if (waitpid(pid, &status, 0) < 0){
+					perror("\nsmash error: waitpid failed");
+				}
+			}
+		}
+	} else { // --- in backrground ---
+		pid_t pid = fork();
+
+		if (pid < 0){
+			perror("\nsmash error: fork failed");
+			exit(1);
+		} else if (pid == 0){
+			// child process
+			setpgrp(); // Ensures that signals won't reach unless used kill
+
+			int cmdStatus;
+			if (isBuiltIn){
+				cmdStatus = chooseBuiltIn(cmd);
+			} else {
+				cmdStatus = handleExternal(cmd);
+			}
+
+			if (cmdStatus != SUCCESS) exit(1);
+
+			exit(0);
 		} else {
-			// Ensure the foreground process is in the same group as the parent
-        	setpgid(0, getppid());
-		}
-
-		if (strcmp(cmd->cmd, "cd") == 0){
-			status = handleCd(cmd);
-		}
-		else if (strcmp(cmd->cmd, "showpid") == 0){
-			status = handleShowPid(cmd);
-		}
-		else if (strcmp(cmd->cmd, "pwd") == 0){
-			status = handlePwd(cmd);
-		}
-		else if (strcmp(cmd->cmd, "jobs") == 0){
-			status = handleJobs(cmd);
-		}
-		else if (strcmp(cmd->cmd, "kill") == 0){
-			status = handleKill(cmd, jobsTable);
-		}
-		else if (strcmp(cmd->cmd, "fg") == 0){
-			status = handleFg(cmd);
-		}
-		else if (strcmp(cmd->cmd, "bg") == 0){
-			status = handleBg(cmd, jobsTable);
-		}
-		else if (strcmp(cmd->cmd, "quit") == 0){
-			status = handleQuit(cmd);
-		}
-		else if (strcmp(cmd->cmd, "diff") == 0){
-			status = handleDiff(cmd);
-		}
-		else {
-			status = handleExternal(cmd);
-		}
-
-		if (status != SUCCESS){
-			exit(EXIT_FAILURE);
-		}
-
-		exit(EXIT_SUCCESS);
-
-	} else {
-		if (isBg) {
+			// parent process
 			addJob(jobsTable, pid, cmd->cmd);
-		} else {
-			// Foreground process: Set terminal control to the child process
-        	tcsetpgrp(STDIN_FILENO, pid);
-
-			int status;
-			pid_t fg_pid = waitpid(pid, &status, WUNTRACED);
-
-			if (WIFSTOPPED(status)) addJob(jobsTable, fg_pid, cmd->cmd);
-
-			// Restore terminal control to the shell
-			tcsetpgrp(STDIN_FILENO, getpid());
 		}
 	}
 	
@@ -181,32 +232,34 @@ int handleCmd(Command* cmd, Job** jobsTable){
 
 int handleShowPid(Command* cmd) {
 	//check for extra arguments
-	if ( !cmd->args[1] ) {
-		printf("smash error: showpid: expceted 0 arguments\n");
+	if ( cmd->args[1] ) {
+		printf("\nsmash error: showpid: expected 0 arguments");
 		return INVALID_COMMAND;
 	}
 	pid_t pid = getpid();
 	printf("smash pid is %d\n", pid);
-
+	return SUCCESS;
 }
 
 int handlePwd(Command* cmd) {
 	//check for extra arguemtns 
-	if ( !cmd->args[1] ) {
-	printf("smash error: pwd: expceted 0 arguments\n");
-	return INVALID_COMMAND;
+	if ( cmd->args[1] ) {
+		printf("smash error: pwd: expceted 0 arguments\n");
+		return INVALID_COMMAND;
 	}
 
 	if (getcwd(path, sizeof(path)) != NULL) {
 		printf("%s\n", path);
 		return SUCCESS;
+	} else {
+		return COMMAND_FAILED;
 	}
 }
 
 int handleCd(Command* cmd) {
     // more than 1 argument check
 	if (!cmd->cmd || cmd->numArgs>1) {
-        printf("smash error: cd: old pwd not set");
+        printf("smash error: cd: expected 1 arguments");
 		return INVALID_COMMAND;
 	}
 
@@ -216,26 +269,31 @@ int handleCd(Command* cmd) {
     }
 
     // previous path check - return invalid if there's no prev path
-	if (strcmp(cmd->args[1],"-") == 0) {
+	if (cmd-strcmp(cmd->args[1],"-") == 0) {
         if (strlen(path) == 0) { // the argument is "-" and there's no previous path			
-            printf("smash error: old pwd not set");
+            printf("\nsmash error: old pwd not set");
             return INVALID_COMMAND;
         } else {
-            if (chdir(curr_path) == 0) {
-                strcpy(path, curr_path);
-                return SUCCESS;
+            if (chdir(path) == -1) {
+				return COMMAND_FAILED;
         }
+		strcpy(path, curr_path);
+        return SUCCESS;
     }
 
     // parent directory command
     if (strcmp(cmd->args[1],"..") == 0) {
-            chdir(".."); // for now the function doesn't take care of a case when the parent directory is not accesible
-        }
+            if(chdir("..") == -1) {; // for now the function doesn't take care of a case when the parent directory is not accesible
+				return COMMAND_FAILED;
+		    }
+			strcpy(path, curr_path);
+			return SUCCESS;
+		}
     }
 
     // none of the above - check for valid path and then switch to it
     if ((strchr(cmd->args[1], "/")) == NULL) {
-        printf("smash error: cd: target directory does not exist");
+        printf("\nsmash error: cd: target directory does not exist");
         return INVALID_COMMAND;
     } else {
         if (chdir(cmd->args[1]) == 0) {
@@ -248,11 +306,15 @@ int handleCd(Command* cmd) {
 int handleJobs(Command* cmd, Job** jobTable) {
 	if (cmd->numArgs>0) {
 		perror("\nsmash error: jobs: expected 0 arguments");
+		printf("smash error: jobs: expected 0 arguments");
+		return INVALID_COMMAND;
 	}
-	for (int i = 0; i < NUM_JOBS; i++) {
-		printJob(jobTable, i);
-
+	if (jobTable) {
+		for (int i = 0; i < NUM_JOBS; i++) {
+			if (!jobTable[i]->isFree) printJob(jobTable, i);
+		}
 	}
+	return SUCCESS;
 }
 
 int handleKill(Command* cmd, Job** jobsTable) {
@@ -262,7 +324,7 @@ int handleKill(Command* cmd, Job** jobsTable) {
 	}
 
 	// Check arguments
-	if (cmd->numArgs != 3) { // check amount of arguments (command, signum, id)
+	if (cmd->numArgs != 2) { // check amount of arguments (command, signum, id)
 		perror("\nsmash error: kill: invalid arguments");
 		return COMMAND_FAILED;
 	}
@@ -292,7 +354,7 @@ int handleKill(Command* cmd, Job** jobsTable) {
 
 	// send signal if job exist on job table
 	if (jobsTable[jobId - 1]->isFree) {
-		perror("job id %d does not exist", jobId);
+		perror("\njob id %d does not exist", jobId);
 		return COMMAND_FAILED;
 	} else {
 		if  (kill(jobsTable[jobId - 1]->jobPid, signum) == -1) {
@@ -300,21 +362,24 @@ int handleKill(Command* cmd, Job** jobsTable) {
 			return COMMAND_FAILED;
 		}
 	}
-	printf("\nsignal %d was sent to pid %d",signum ,jobsTable[jobId - 1]->jobPid); // check if this correct
+	printf("\nsignal %d was sent to pid %d",signum ,jobsTable[jobId - 1]->jobId); // check if this correct
 	return SUCCESS;
 }
 
 int handleFg(Command* cmd, Job** jobsTable) {
-	if (!jobsTable && !cmd->args[1]) {
-		perror("\n smash error: fg: jobs list is empty");
+	if (!jobsTable) return MEM_ALLOC_ERR;
+	if (!cmd->args[1]) {
+		perror("\nsmash error: fg: jobs list is empty");
+		printf("smash error: fg: jobs list is empty");
+		return INVALID_COMMAND;
 	}
-	int jobId = cmd->args[1];
+	int jobId = atoi(cmd->args[1]);
 	if (cmd->numArgs == 0) {
 		//implement find_max_job function
 		jobId = maxJob(jobsTable); //check this correctness
 	} 
 	//print to stdout the cmd and pid
-	printf("%s %d", jobsTable[jobId]->cmdName, jobsTable[jobId]->jobNum);
+	printf("%s %d\n", jobsTable[jobId]->cmdName, jobsTable[jobId]->jobNum);
 
 	//send SIGCONT to the process to activate it again
 	if (kill(jobsTable[jobId]->jobPid,SIGCONT) == -1 ) {
@@ -332,12 +397,12 @@ int handleFg(Command* cmd, Job** jobsTable) {
 		return COMMAND_FAILED;
 	}
 
-	
+	return SUCCESS;
 }
 
 int handleBg(Command* cmd, Job** jobTable){
 	// check arguments
-	if (!cmd || !jobTable || cmd->numArgs > 2) {
+	if (!cmd || !jobTable || cmd->numArgs > 1) {
 		perror("\nsmash error: kill: invalid arguments");
 		return COMMAND_FAILED;
 	}
@@ -402,70 +467,141 @@ int handleBg(Command* cmd, Job** jobTable){
 }
 
 int handleQuit(Command* cmd, Job** jobsTable) {
-	// if kill exists: kill all the jobs in ascending order
+// ~!!!~ the prints for each job are in the same line
 
-	//for each job in the table:
-	//print job id and its command
-
-	//send SIGTERM with message
-
-	//if the process killed *up to* 5 secs - print done
-
-	// if the process is not killed within 5 secs - send SIGKILL with message
-
-	// ~!!!~ the prints for each job are in the same line
-
-	
+// if kill exists: kill all the jobs in ascending order
+//for each job in the table:
+	for ( int i = 0; i < NUM_JOBS; i++ ) {
+		if (!jobsTable[i]->isFree) {
+			if (cmd->numArgs == 1) {
+				if (kill(jobsTable[i]->jobPid, SIGKILL) == -1 ) {
+					return COMMAND_FAILED;
+				}
+		} else {
+			if (strcmp(cmd->args[1],"kill") == 0 && cmd->numArgs > 1) {
+			//print job id and its command
+				printf("[%d] %s", jobsTable[i]->jobNum, jobsTable[i]->cmd);
+				//send SIGTERM with message
+				if (kill(jobsTable[i]->jobPid, SIGTERM) == -1) {
+					return COMMAND_FAILED;
+			} else {
+				printf("sending SIGTERM... ");
+				//if the process killed *up to* 5 secs - print done
+				sleep(5);
+				if (kill(jobsTable[i]->jobPid,0) == 0 ){ //process still running after 5 secs
+				// if the process is not killed within 5 secs - send SIGKILL with message
+					if(kill(jobsTable[i]->jobPid, SIGKILL) == -1) return COMMAND_FAILED;
+						else {
+							printf("sending SIGKILL... done");
+						}
+				} else { //process terminated within 5 secs
+					jobsTable[i]->isFree == true;
+					printf("done");
+				}
+				}
+			}
+				}
+		} else {
+			perror("\n smash error:quit: unexpected arguments");
+			return COMMAND_FAILED;	
+		}
+	}
+	//the smash process waits for all of its childern to terminate.
+	int status;
+	term_status = waitpid(-1, &status, 0);
+	if (term_status == -1 ) { //all childern process have been terminated
+		destroyTable(Job** jobsTable);
+		exit(0);
+	}
 }
 
 
 int handleDiff(Command* cmd){
 	// Check arguments
-
+	if (!cmd) return INVALID_COMMAND;
+	
+	if (cmd->numArgs > 2 || !(cmd->args[1]) || !(cmd->args[2])) {
+		perror("\nsmash error: diff: expected 2 arguments");
+	}
+	
 	// Check if path exist
-
-	// Check if file exists in path
-
-}	// ------------- example from the original commands.c file ------------// 
-
-//example function for getting/setting return value of a process.
-#include <unistd.h>
-#include <sys/wait.h>
-int processReturnValueExample()
-{
-	pid_t pid = fork();
-	if(pid < 0)
-	{
-		perror("fork fail");
-		exit(1);
+	struct stat stat1, stat2;
+	char* path1 = cmd->args[1];
+	char* path2 = cmd->args[2];
+	
+	if (stat(path1, &stat1) != 0 || stat(path2, &stat2) != 0){
+		perror("\nsmash error: diff: expected valid paths for files");
+		return COMMAND_FAILED;
 	}
-	else if(pid == 0) //child code
-	{
-		//do some work here - for example, execute an external command
-		char* cmd = "/bin/ls";
-		char* args[] = {"ls", "-l", NULL};
-		execvp(cmd, args);
-		//execvp never returns unless upon error
-		perror("execvp fail");
-		exit(1); //set nonzero exit code for father to read
+
+	// Check if both paths are files and not directories
+	if (!S_ISREG(stat1.st_mode) || !S_ISREG(stat2.st_mode)) {
+		perror("\nsmash error: diff: paths are not files");
+		return COMMAND_FAILED;
 	}
-	else //father code
-	{
-		int status;
-		waitpid(pid, &status, 0); //wait for child to finish and read exit code into status
-		if(WIFEXITED(status)) //WIFEXITED determines if a child exited with exit()
-		{
-			int exitStatus = WEXITSTATUS(status);
-			if(!exitStatus)
-			{
-				//exit status != 0, handle error	
-			}
-			else
-			{
-				//exit status == 0, handle success
-			}
+
+	FILE *f1 = fopen(path1, "rb");
+	FILE *f2 = fopen(path2, "rb");
+
+	if (f1 == NULL || f2 = NULL) {
+		if (f1) fclose(f1);
+		if (f2) fclose(f2);
+		perror("\nsmash error: could not open file");
+		return COMMAND_FAILED;
+	}
+
+	int c1, c2;
+	while (1){
+		c1 = fgetc(f1);
+		c2 = fgetc(f2);
+
+		// In the case two letters are different
+		if (c1 != c2) {
+			printf("1\n");
+			break;
+		}
+
+		// In case we reached the end of file (successfully)
+		if (c1 == EOF && c2 == EOF){
+			printf("0\n");
+			break;
 		}
 	}
 
-	return 0;
+	// Close the files
+	fclose(f1);
+	fclose(f2);
+
+	return SUCCESS;
+}	
+
+int handleExternal(Command* cmd, Job** jobsTable) {
+	if(cmd->numArgs <= 0 ) {
+		printf("smash error: external: invalid command");
+	}
+	// the program we're trying to executre doesn't exist in the current path
+	if (!fopen(cmd->args[0], "r")) { 
+		perror("\nsmash error: external: cannot find program");
+		printf("smash error: external: cannot find program\n");
+	} else {
+			if(execvp(cmd->args[0],args) == -1) {
+			printf("smash error: external: invalid command");
+			return COMMAND_FAILED;
+		}
+		return SUCCESS;
+	}
+}
+
+
+int maxJobNum(Job** jobsTable) {
+	if (!jobsTable) return MEM_ALLOC_ERR;
+	int maxJobNum;
+	for (int i = 0; i < NUM_JOBS; i++) {
+		if (!jobsTable[i]->isFree) {
+			if (jobsTable[i]->jobNum > maxJobNum) {
+				maxJobNum= jobsTable[i]->jobNum;
+			}
+		}
+	}
+	return maxJobNum;
 }

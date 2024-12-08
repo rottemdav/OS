@@ -4,6 +4,7 @@
 * includes, defines, usings
 =============================================================================*/
 #include <stdlib.h> //for NULL
+#include <sys/stat.h>
 #include "signals.h"
 #include "jobs.h"
 
@@ -24,15 +25,22 @@ enum cmdStatus
 /*=============================================================================
 * global functions
 =============================================================================*/
-typedef struct cmd Command;
+typedef struct cmd {
+	char* cmd;
+	char* args[MAX_ARGS];
+	char* cmdFull;
+	int numArgs;
+} Command;
 
 // Will parse the command into sections
-int parseCommand(char* line, Command* outCmd);
+int parseCmd(char* line, Command* outCmd);
 
 void freeCommand(Command* cmd);
 
 // Will get a command after parsing and handle according to needs
 int handleCmd(Command* cmd, Job** jobTable);
+
+int chooseBuiltIn(Command* cmd, Job** jobsTable);
 
 int handleShowPid(Command* cmd);
 
@@ -53,5 +61,9 @@ int handleQuit(Command* cmd, Job** jobsTable);
 int handleDiff(Command* cmd);
 
 int handleExternal(Command* cmd);
+
+bool isBuiltInCmd(Command* cmd);
+
+int maxJobNum(Job** jobsTable);
 
 #endif //__COMMANDS_H__
