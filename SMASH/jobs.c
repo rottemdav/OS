@@ -65,9 +65,9 @@ int addJob(Job** jobsTable, pid_t jobPid, char* cmd){
     
     if (checkJobs(jobsTable) == ERROR) return ERROR;
     
-    // int status;
-    // pid_t result = waitpid(jobPid, &status, WNOHANG | WUNTRACED);
-    // bool isStopped = (result > 0 && WIFSTOPPED(status));
+    int status;
+    pid_t result = waitpid(jobPid, &status, WNOHANG | WUNTRACED);
+    bool isStopped = (result > 0 && WIFSTOPPED(status));
 
     // // <----------- what if is this? ------>
     // if (result <= 0 || !isStopped){
