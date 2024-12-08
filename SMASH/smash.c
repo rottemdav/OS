@@ -4,7 +4,6 @@
 * includes, defines, usings
 =============================================================================*/
 #include <stdlib.h>
-#include <string.h>
 
 #include "commands.h"
 #include "signals.h" 
