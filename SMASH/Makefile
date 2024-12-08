@@ -13,16 +13,16 @@ $(TARGET): $(OBJS)
 	$(CC) $(CFLAGS) -o $(TARGET) $(OBJS)
 
 # Rules for building object files
-smash.o: smash.c commands.h signals.h jobs.h constants.h
+smash.o: smash.c commands.h signals.h jobs.h
 	$(CC) $(CFLAGS) -c smash.c
 
-commands.o: commands.c commands.h jobs.h constants.h
+commands.o: commands.c commands.h jobs.h
 	$(CC) $(CFLAGS) -c commands.c
 
-signals.o: signals.c signals.h constants.h
+signals.o: signals.c signals.h
 	$(CC) $(CFLAGS) -c signals.c
 
-jobs.o: jobs.c jobs.h constants.h
+jobs.o: jobs.c jobs.h
 	$(CC) $(CFLAGS) -c jobs.c
 
 # Cleaning old files before a new build
