@@ -16,7 +16,7 @@
 =============================================================================*/
 enum cmdStatus
 {
-	SUCCESS = 0,
+	COMMAND_SUCCESS = 0,
 	INVALID_COMMAND = 1,
 	MEM_ALLOC_ERR = 2,
 	COMMAND_FAILED = 3,
