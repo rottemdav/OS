@@ -177,7 +177,8 @@ int handleCmd(Command* cmd, Job** jobsTable){
 			pid_t pid = fork();
 
 			if (pid < 0){
-				perror("\nsmash error: fork failed");
+				fprintf(stderr, "\n");
+				perror("smash error: fork failed");
 				exit(1);
 			} else if (pid == 0){
 				// child process
@@ -193,7 +194,8 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				
 				// wait for child process to finish
 				if (waitpid(pid, &status, 0) < 0){
-					perror("\nsmash error: waitpid failed");
+					fprintf(stderr, "\n");
+					perror("smash error: waitpid failed");
 				}
 			}
 		}
@@ -201,7 +203,8 @@ int handleCmd(Command* cmd, Job** jobsTable){
 		pid_t pid = fork();
 
 		if (pid < 0){
-			perror("\nsmash error: fork failed");
+			fprintf(stderr, "\n");
+			perror("smash error: fork failed");
 			exit(1);
 		} else if (pid == 0){
 			// child process
@@ -360,7 +363,8 @@ int handleKill(Command* cmd, Job** jobsTable) {
 		return COMMAND_FAILED;
 	} else {
 		if  (kill(jobsTable[jobId - 1]->jobPid, signum) == -1) {
-			perror("\nsmash error: kill failed");
+			fprintf(stderr, "\n");
+			perror("smash error: kill failed");
 			return COMMAND_FAILED;
 		}
 	}
@@ -369,8 +373,8 @@ int handleKill(Command* cmd, Job** jobsTable) {
 }
 
 int handleFg(Command* cmd, Job** jobsTable) {
-	if (!jobsTable) return MEM_ALLOC_ERR;
-	if (!cmd->args[1]) {
+	if (!cmd || !jobsTable) return MEM_ALLOC_ERR;
+	if (!cmd->args[1] && maxJobNum(jobsTable) == 0 ) {
 		//perror("\nsmash error: fg: jobs list is empty");
 		printf("\nsmash error: fg: jobs list is empty");
 		return INVALID_COMMAND;
@@ -385,7 +389,8 @@ int handleFg(Command* cmd, Job** jobsTable) {
 
 	//send SIGCONT to the process to activate it again
 	if (kill(jobsTable[jobId]->jobPid,SIGCONT) == -1 ) {
-		perror("\nsmash error: kill failed");
+		fprintf(stderr, "\n");
+		perror("smash error: kill failed");
 		return COMMAND_FAILED;
 	}
 
@@ -395,7 +400,8 @@ int handleFg(Command* cmd, Job** jobsTable) {
 	//smash waits for the process to finish
 	int status;
 	if (waitpid(jobsTable[jobId]->jobPid, &status, 0) == -1 ) {
-		perror("\nsmash error: waitpid failed");
+		fprintf(stderr, "\n");
+		perror("smash error: waitpid failed");
 		return COMMAND_FAILED;
 	}
 
@@ -435,7 +441,8 @@ int handleBg(Command* cmd, Job** jobsTable){
 
 			// send signal to continue
 			if (kill(jobsTable[jobId - 1]->jobPid, SIGCONT) == -1){
-				perror("\nsmash error: kill failed");
+				fprintf(stderr, "\n");
+				perror("smash error: kill failed");
 				return COMMAND_FAILED;
 			}
 			
@@ -455,7 +462,8 @@ int handleBg(Command* cmd, Job** jobsTable){
 					
 					// send signal
 					if (kill(jobsTable[i]->jobPid, SIGCONT) == -1){
-						perror("\nsmash error: kill failed");
+						fprintf(stderr, "\n");
+						perror("smash error: kill failed");
 						return COMMAND_FAILED;
 					}
 
@@ -476,41 +484,45 @@ int handleQuit(Command* cmd, Job** jobsTable) {
 for ( int i = 0; i < NUM_JOBS; i++ ) {
 	if (!jobsTable[i]->isFree) {
 		if (cmd->numArgs == 1) {
+			// kill job with SIGKILL
 			if (kill(jobsTable[i]->jobPid, SIGKILL) == -1 ) {
 				return COMMAND_FAILED;
 				}
-		} else {
-			if (strcmp(cmd->args[1],"kill") == 0 && cmd->numArgs > 1) {
-			//print job id and its command
-				printf("[%d] %s", jobsTable[i]->jobNum, jobsTable[i]->cmdName);
-				//send SIGTERM with message
-				if (kill(jobsTable[i]->jobPid, SIGTERM) == -1) {
-					return COMMAND_FAILED;
+		} else if (strcmp(cmd->args[1],"kill") == 0 && cmd->numArgs > 1) {
+			// print job id and its command
+			printf("[%d] %s", jobsTable[i]->jobNum, jobsTable[i]->cmdName);
+
+			// send SIGTERM with message
+			if (kill(jobsTable[i]->jobPid, SIGTERM) == -1) {
+				return COMMAND_FAILED;
+				
 			} else {
 				printf("sending SIGTERM... ");
-				//if the process killed *up to* 5 secs - print done
+				
+				// wait 5 secs
 				sleep(5);
-				if (kill(jobsTable[i]->jobPid,0) == 0 ){ //process still running after 5 secs
-				// if the process is not killed within 5 secs - send SIGKILL with message
-					if(kill(jobsTable[i]->jobPid, SIGKILL) == -1) return COMMAND_FAILED;
-						else {
+				
+				if (kill(jobsTable[i]->jobPid,0) == 0 ){ // process still running after 5 secs
+				// send SIGKILL if not terminated
+					if(kill(jobsTable[i]->jobPid, SIGKILL) == -1) {
+						return COMMAND_FAILED; 
+					} else {
 							printf("sending SIGKILL... done");
-							continue;
 						}
-				} else { //process terminated within 5 secs
+				} else { // process terminated within 5 secs
 					jobsTable[i]->isFree = true;
 					printf("done");
-					continue;
 					}
 				}
+			} else {
+				fprintf(stderr, "\n");
+				perror("smash error:quit: unexpected arguments");
+				return COMMAND_FAILED;	
 			}
-				}
-		} else {
-			perror("\n smash error:quit: unexpected arguments");
-			return COMMAND_FAILED;	
 		}
-} //for
-//the smash process waits for all of its childern to terminate.
+	} 
+
+// smash process waits for all of its childern to terminate.
 int status;
 int term_status = waitpid(-1, &status, 0);
 if (term_status == -1 ) { //all childern process have been terminated
@@ -518,6 +530,7 @@ if (term_status == -1 ) { //all childern process have been terminated
 	exit(0);
 	return SUCCESS;
 	}
+return INVALID_COMMAND;
 }
 
 
@@ -551,7 +564,8 @@ int handleDiff(Command* cmd){
 	if (f1 == NULL || f2 == NULL) {
 		if (f1) fclose(f1);
 		if (f2) fclose(f2);
-		perror("\nsmash error: fopen failed");
+		fprintf(stderr, "\n");
+		perror("smash error: fopen failed");
 		return COMMAND_FAILED;
 	}
 
@@ -581,9 +595,12 @@ int handleDiff(Command* cmd){
 }	
 
 int handleExternal(Command* cmd, Job** jobsTable) {
-	if(cmd->numArgs <= 0 ) {
+	if(!cmd || cmd->numArgs <= 0 ) {
 		printf("smash error: external: invalid command");
-	}
+		return INVALID_COMMAND;
+	} 
+	//fprintf(stderr, "\n");
+
 	// the program we're trying to executre doesn't exist in the current path
 	if (!fopen(cmd->args[0], "r")) { 
 		//perror("\nsmash error: external: cannot find program");
@@ -600,11 +617,11 @@ int handleExternal(Command* cmd, Job** jobsTable) {
 
 int maxJobNum(Job** jobsTable) {
 	if (!jobsTable) return MEM_ALLOC_ERR;
-	int maxJobNum;
+	int maxJobNum = 0;
 	for (int i = 0; i < NUM_JOBS; i++) {
 		if (!jobsTable[i]->isFree) {
 			if (jobsTable[i]->jobNum > maxJobNum) {
-				maxJobNum= jobsTable[i]->jobNum;
+				maxJobNum = jobsTable[i]->jobNum;
 			}
 		}
 	}
