@@ -5,6 +5,7 @@
 =============================================================================*/
 #include <stdlib.h> //for NULL
 #include <sys/stat.h>
+#include <string.h>
 #include "signals.h"
 #include "jobs.h"
 
@@ -38,7 +39,7 @@ int parseCmd(char* line, Command* outCmd);
 void freeCommand(Command* cmd);
 
 // Will get a command after parsing and handle according to needs
-int handleCmd(Command* cmd, Job** jobTable);
+int handleCmd(Command* cmd, Job** jobsTable);
 
 int chooseBuiltIn(Command* cmd, Job** jobsTable);
 
@@ -48,9 +49,9 @@ int handlePwd(Command* cmd);
 
 int handleCd(Command* cmd);
 
-int handleJobs(Command* cmd, Job** jobTable);
+int handleJobs(Command* cmd, Job** jobsTable);
 
-int handleKill(Command* cmd, Job** jobTable);
+int handleKill(Command* cmd, Job** jobsTable);
 
 int handleFg(Command* cmd, Job** jobsTable);
 
@@ -60,7 +61,7 @@ int handleQuit(Command* cmd, Job** jobsTable);
 
 int handleDiff(Command* cmd);
 
-int handleExternal(Command* cmd);
+int handleExternal(Command* cmd, Job** jobsTable);
 
 bool isBuiltInCmd(Command* cmd);
 

@@ -122,13 +122,13 @@ int chooseBuiltIn(Command* cmd, Job** jobsTable){
 		return handleKill(cmd, jobsTable);
 	}
 	else if (strcmp(cmd->cmd, "fg") == 0){
-		return handleFg(cmd, jobTable);
+		return handleFg(cmd, jobsTable);
 	}
 	else if (strcmp(cmd->cmd, "bg") == 0){
 		return handleBg(cmd, jobsTable);
 	}
 	else if (strcmp(cmd->cmd, "quit") == 0){
-		return handleQuit(cmd, jobTable);
+		return handleQuit(cmd, jobsTable);
 	}
 	else if (strcmp(cmd->cmd, "diff") == 0){
 		return handleDiff(cmd);
@@ -209,7 +209,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 
 			int cmdStatus;
 			if (isBuiltIn){
-				cmdStatus = chooseBuiltIn(cmd);
+				cmdStatus = chooseBuiltIn(cmd, jobsTable);
 			} else {
 				cmdStatus = handleExternal(cmd);
 			}
@@ -269,7 +269,7 @@ int handleCd(Command* cmd) {
     }
 
     // previous path check - return invalid if there's no prev path
-	if (cmd-strcmp(cmd->args[1],"-") == 0) {
+	if (strcmp(cmd->args[1],"-") == 0) {
         if (strlen(path) == 0) { // the argument is "-" and there's no previous path			
             printf("\nsmash error: old pwd not set");
             return INVALID_COMMAND;
@@ -304,15 +304,15 @@ int handleCd(Command* cmd) {
     }
 }	
 
-int handleJobs(Command* cmd, Job** jobTable) {
+int handleJobs(Command* cmd, Job** jobsTable) {
 	if (cmd->numArgs>0) {
 		printf("\nsmash error: jobs: expected 0 arguments");
 		printf("\nsmash error: jobs: expected 0 arguments");
 		return INVALID_COMMAND;
 	}
-	if (jobTable) {
+	if (jobsTable) {
 		for (int i = 0; i < NUM_JOBS; i++) {
-			if (!jobTable[i]->isFree) printJob(jobTable, i);
+			if (!jobsTable[i]->isFree) printJob(jobsTable, i);
 		}
 	}
 	return COMMAND_SUCCESS;
@@ -402,9 +402,9 @@ int handleFg(Command* cmd, Job** jobsTable) {
 	return COMMAND_SUCCESS;
 }
 
-int handleBg(Command* cmd, Job** jobTable){
+int handleBg(Command* cmd, Job** jobsTable){
 	// check arguments
-	if (!cmd || !jobTable || cmd->numArgs > 1) {
+	if (!cmd || !jobsTable || cmd->numArgs > 1) {
 		printf("\nsmash error: kill: invalid arguments");
 		return COMMAND_FAILED;
 	}
@@ -417,24 +417,24 @@ int handleBg(Command* cmd, Job** jobTable){
 		}
 
 		// check if job exists
-		if (jobTable[jobId - 1]->isFree) {
+		if (jobsTable[jobId - 1]->isFree) {
 			printf("\nsmash error: bg: job id %d does not exist", jobId);
 			return COMMAND_FAILED;
 		} else {
 			// check if job is stopped
-			if (!(jobTable[jobId - 1]->isStopped)) {
+			if (!(jobsTable[jobId - 1]->isStopped)) {
 				printf("\nsmash error: bg: job id %d is already in background", jobId);
 				return COMMAND_FAILED;
 			}
 			
 			// print the command and pid 
-			printf("\n%s: %d", cmd->cmdFull, jobTable[jobId - 1]->jobPid);
+			printf("\n%s: %d", cmd->cmdFull, jobsTable[jobId - 1]->jobPid);
 			
 			// set as not stopped in table
-			continueJob(jobId, jobTable);
+			continueJob(jobId, jobsTable);
 
 			// send signal to continue
-			if (kill(jobTable[jobId - 1]->jobPid, SIGCONT) == -1){
+			if (kill(jobsTable[jobId - 1]->jobPid, SIGCONT) == -1){
 				perror("\nsmash error: kill failed");
 				return COMMAND_FAILED;
 			}
@@ -443,18 +443,18 @@ int handleBg(Command* cmd, Job** jobTable){
 		}
 	} else {
 		for (int i = NUM_JOBS - 1; i >= 0; i--){ // Check for jobs from max
-			if (jobTable[i]->isFree) continue;
+			if (jobsTable[i]->isFree) continue;
 			else {
-				if (jobTable[i]->isStopped){ // if job is stopped
+				if (jobsTable[i]->isStopped){ // if job is stopped
 					
 					// print command nad pid
-					printf("\n%s: %d", cmd->cmdFull, jobTable[i]->jobPid);
+					printf("\n%s: %d", cmd->cmdFull, jobsTable[i]->jobPid);
 					
 					// set as not stopped in table (i+1 because we send jobId (1-100))
-					continueJob(i+1, jobTable);
+					continueJob(i+1, jobsTable);
 					
 					// send signal
-					if (kill(jobTable[i]->jobPid, SIGCONT) == -1){
+					if (kill(jobsTable[i]->jobPid, SIGCONT) == -1){
 						perror("\nsmash error: kill failed");
 						return COMMAND_FAILED;
 					}
@@ -473,16 +473,16 @@ int handleQuit(Command* cmd, Job** jobsTable) {
 
 // if kill exists: kill all the jobs in ascending order
 //for each job in the table:
-	for ( int i = 0; i < NUM_JOBS; i++ ) {
-		if (!jobsTable[i]->isFree) {
-			if (cmd->numArgs == 1) {
-				if (kill(jobsTable[i]->jobPid, SIGKILL) == -1 ) {
-					return COMMAND_FAILED;
+for ( int i = 0; i < NUM_JOBS; i++ ) {
+	if (!jobsTable[i]->isFree) {
+		if (cmd->numArgs == 1) {
+			if (kill(jobsTable[i]->jobPid, SIGKILL) == -1 ) {
+				return COMMAND_FAILED;
 				}
 		} else {
 			if (strcmp(cmd->args[1],"kill") == 0 && cmd->numArgs > 1) {
 			//print job id and its command
-				printf("[%d] %s", jobsTable[i]->jobNum, jobsTable[i]->cmd);
+				printf("[%d] %s", jobsTable[i]->jobNum, jobsTable[i]->cmdName);
 				//send SIGTERM with message
 				if (kill(jobsTable[i]->jobPid, SIGTERM) == -1) {
 					return COMMAND_FAILED;
@@ -498,7 +498,7 @@ int handleQuit(Command* cmd, Job** jobsTable) {
 							continue;
 						}
 				} else { //process terminated within 5 secs
-					jobsTable[i]->isFree == true;
+					jobsTable[i]->isFree = true;
 					printf("done");
 					continue;
 					}
@@ -509,13 +509,14 @@ int handleQuit(Command* cmd, Job** jobsTable) {
 			perror("\n smash error:quit: unexpected arguments");
 			return COMMAND_FAILED;	
 		}
-	} //for
-	//the smash process waits for all of its childern to terminate.
-	int status;
-	term_status = waitpid(-1, &status, 0);
-	if (term_status == -1 ) { //all childern process have been terminated
-		destroyTable(Job** jobsTable);
-		exit(0);
+} //for
+//the smash process waits for all of its childern to terminate.
+int status;
+int term_status = waitpid(-1, &status, 0);
+if (term_status == -1 ) { //all childern process have been terminated
+	destroyTable(jobsTable);
+	exit(0);
+	return SUCCESS;
 	}
 }
 
