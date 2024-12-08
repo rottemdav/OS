@@ -399,7 +399,7 @@ int handleFg(Command* cmd, Job** jobsTable) {
 	}
 
 	//remove job from jobsTable
-	deleteJob(jobId, jobsTable);
+	deleteJobs(jobId, jobsTable);
 
 	//smash waits for the process to finish
 	int status;
