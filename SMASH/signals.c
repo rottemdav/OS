@@ -25,7 +25,7 @@ void sigtstpHandler(int sig){
     pid_t fg_pid = tcgetpgrp(STDIN_FILENO);
     
     if (fg_pid != getpid()) {
-        kill(-fg_pid, SIGSTP);
+        kill(-fg_pid, SIGTSTP);
         printf("\nsmash: process %d was stopped", fg_pid);
     }
 }
@@ -44,7 +44,7 @@ void installSignalHandlers() {
 
     // Install SIGSTP handler
     sa.sa_handler = sigtstpHandler;
-    if (sigaction(SIGSTP, &sa, NULL) == -1){
+    if (sigaction(SIGTSTP, &sa, NULL) == -1){
         perror("\nsmash error: kill failed");
         exit(EXIT_FAILURE);
     }
