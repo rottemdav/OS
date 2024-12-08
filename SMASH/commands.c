@@ -43,7 +43,9 @@ char path[1024] ="";
 	// Copy the whole user input (full command)
 	outCmd->cmdFull = (char*)malloc(sizeof(char)*strlen(line) + 1);
 	if (!(outCmd->cmdFull)) return MEM_ALLOC_ERR;
-	strlcpy(outCmd->cmdFull, line);
+	
+	strncpy(outCmd->cmdFull, line, strlen(line));
+	outCmd->cmdFull[strlen(line)] = '\0';
 
 	// Copy only the command name
 	outCmd->cmd = (char*)malloc(sizeof(char)*strlen(args[0]) + 1);
@@ -51,8 +53,9 @@ char path[1024] ="";
 		free(outCmd->cmdFull);
 		return MEM_ALLOC_ERR;
 	} 
-	strlcpy(outCmd->cmd, args[0], strlen(args[0]) + 1);
-	
+	strncpy(outCmd->cmd, args[0], strlen(args[0]));
+	outCmd->cmd[strlen(args[0])] = '\0';
+
 	// Set number of arguments of the user's command
 	outCmd->numArgs = numArgs;
 
@@ -65,7 +68,8 @@ char path[1024] ="";
 				freeCommand(outCmd);
 				return MEM_ALLOC_ERR;
 			}
-			strlcpy(outCmd->args[i], args[i], strlen(args[i]) + 1);
+			strncpy(outCmd->args[i], args[i], strlen(args[i]));
+			outCmd->args[i][strlen(args[i])] = '\0';
 		}
 	}
 
@@ -214,7 +218,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 			if (isBuiltIn){
 				cmdStatus = chooseBuiltIn(cmd, jobsTable);
 			} else {
-				cmdStatus = handleExternal(cmd);
+				cmdStatus = handleExternal(cmd, jobsTable);
 			}
 
 			if (cmdStatus != COMMAND_SUCCESS) exit(1);
@@ -295,7 +299,7 @@ int handleCd(Command* cmd) {
     }
 
     // none of the above - check for valid path and then switch to it
-    if ((strchr(cmd->args[1], "/")) == NULL) {
+    if ((strchr(cmd->args[1], '/')) == NULL) {
         printf("\nsmash error: cd: target directory does not exist");
         return INVALID_COMMAND;
     } else {
@@ -508,19 +512,19 @@ for ( int i = 0; i < NUM_JOBS; i++ ) {
 						return COMMAND_FAILED; 
 					} else {
 							printf("sending SIGKILL... done");
-						}
+					}
 				} else { // process terminated within 5 secs
 					jobsTable[i]->isFree = true;
 					printf("done");
-					}
 				}
-			} else {
-				fprintf(stderr, "\n");
-				perror("smash error:quit: unexpected arguments");
-				return COMMAND_FAILED;	
 			}
+		} else {
+			fprintf(stderr, "\n");
+			perror("smash error:quit: unexpected arguments");
+			return COMMAND_FAILED;	
 		}
-	} 
+	}
+} 
 
 // smash process waits for all of its childern to terminate.
 int status;
@@ -610,8 +614,8 @@ int handleExternal(Command* cmd, Job** jobsTable) {
 			printf("smash error: external: invalid command");
 			return COMMAND_FAILED;
 		}
-		return COMMAND_SUCCESS;
 	}
+	return COMMAND_SUCCESS;
 }
 
 
