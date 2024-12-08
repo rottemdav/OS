@@ -44,9 +44,9 @@ int checkJobs(Job** jobsTable){
             if (result == 0) continue;           // still running
             else if (result == -1) return ERROR; // invalid PID
             else {
-                if (WIFSTOPED(status)) continue; // process stopped
+                if (WIFSTOPPED(status)) continue; // process stopped
                 if (WIFEXITED(status) || WIFSIGNALED(status)){ // exited / terminated
-                    if (deleteJobs(jobsTable[i]->jobNum, jobsTable) == ERROR){
+                    if (deleteJob(jobsTable[i]->jobNum, jobsTable) == ERROR){
                         return ERROR;
                     }
                 } 
@@ -65,41 +65,45 @@ int addJob(Job** jobsTable, pid_t jobPid, char* cmd){
     
     if (checkJobs(jobsTable) == ERROR) return ERROR;
     
-    int status;
-    pid_t result = waitpid(jobPid, &status, WNOHANG | WUNTRACED);
-    bool isStopped = (result > 0 && WIFSTOPPED(status));
+    // int status;
+    // pid_t result = waitpid(jobPid, &status, WNOHANG | WUNTRACED);
+    // bool isStopped = (result > 0 && WIFSTOPPED(status));
 
-    // <----------- what if is this? ------>
-    else {
-        for (int i=0; i < NUM_JOBS; i++){
-            if (!jobsTable[i]->isFree) continue;
-            else { // Found minimal job id that is free
-                jobsTable[i]->isFree = false;
-                jobsTable[i]->jobPid = jobPid;
-                jobsTable[i]->startTime = time(NULL); 
-                jobsTable[i]->isStopped = isStopped;
-                jobsTable[i]->cmdName = (char*)malloc(strlen(cmd)*sizeof(char)+1);
-                if (!jobsTable[i]->cmdName) return ERROR;
-                strlcpy(jobsTable[i]->cmdName, cmd, strlen(cmd) + 1);
-                
-                break;
-            }
+    // // <----------- what if is this? ------>
+    // if (result <= 0 || !isStopped){
+    //     return ERROR;
+    // }
+    // else {
+    for (int i=0; i < NUM_JOBS; i++){
+        if (!jobsTable[i]->isFree) continue;
+        else { // Found minimal job id that is free
+            jobsTable[i]->isFree = false;
+            jobsTable[i]->jobPid = jobPid;
+            jobsTable[i]->startTime = time(NULL); 
+            jobsTable[i]->isStopped = isStopped;
+            jobsTable[i]->cmdName = (char*)malloc(strlen(cmd)*sizeof(char)+1);
+            if (!jobsTable[i]->cmdName) return ERROR;
+            strncpy(jobsTable[i]->cmdName, cmd, strlen(cmd) + 1);
+            jobsTable[i]->cmdName[strlen(cmd)] = '\0';
+            
+            break;
         }
     }
+   // }
    
    return SUCCESS;
 }
 
 void printJob(Job** jobsTable, int idx) {
     //for (int i = 0; i < NUM_JOBS; i++) {
-        if (!jobsTable[idx]->isFree) {
-            printf("[%d] %s: %d %ld %s" ,
-                     jobsTable[idx]->jobNum,
-                     jobsTable[idx]->cmdName,
-                     jobsTable[idx]->jobPid,
-                     (long)(timediff(jobsTable[idx]->startTime, time(NULL)),
-                     (jobsTable[idx]->isStopped) ?  "Stopped"  : "" ));
-        }
+    if (!jobsTable[idx]->isFree) {
+        printf("[%d] %s: %d %ld %s" ,
+                    jobsTable[idx]->jobNum,
+                    jobsTable[idx]->cmdName,
+                    jobsTable[idx]->jobPid,
+                    (long)(difftime(jobsTable[idx]->startTime, time(NULL))),
+                    ((jobsTable[idx]->isStopped) ?  "Stopped" : "" ));
+    }
     //}
 }
 
