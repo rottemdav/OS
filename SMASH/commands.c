@@ -222,20 +222,25 @@ int handleCmd(Command* cmd, Job** jobsTable){
 			} else if (pid == 0){
 				// child process
 				setpgrp(); // Ensures that signals won't reach unless used kill
-				int cmdStatus = handleExternal(cmd, jobsTable);
-				if (cmdStatus != COMMAND_SUCCESS) exit(1);
 
-				exit(0);
+				// If the external command wasn't executed properly, it will use
+				// exit(1), otherwise the execvp will exit
+				if (handleExternal(cmd, jobsTable) != COMMAND_SUCCESS) exit(1);
+
 			} else {
 				// parent process
-				addJob(jobsTable, pid, cmd->cmdFull);
+				setpgid(pid, pid); // Ensures the child process is in its own process group
+				tcsetpgrp(STDIN_FILENO,pid); // Set the child process group as the foreground
+
 				int status;
+				// Wait for the child process to terminate or stop
+				waitpid(pid, &status, WUNTRACED);
 				
-				// wait for child process to finish
-				if (waitpid(pid, &status, 0) < 0){
-					fprintf(stderr, "\n");
-					perror("smash error: waitpid failed");
-				}
+				// Restore shell as foreground process
+				tcsetpgrp(STDIN_FILENO, getpgrp());
+
+				// Add process to the job table in case it was stopped
+				if (WIFSTOPPED(status)) addJob(jobsTable, pid, cmd->cmdFull);
 			}
 		}
 	} else { // --- in backrground ---
@@ -258,7 +263,6 @@ int handleCmd(Command* cmd, Job** jobsTable){
 
 			if (cmdStatus != COMMAND_SUCCESS) exit(1);
 
-			exit(0);
 		} else {
 			// parent process
 			addJob(jobsTable, pid, cmd->cmdFull);
@@ -651,17 +655,14 @@ int handleDiff(Command* cmd){
 }	
 
 int handleExternal(Command* cmd, Job** jobsTable) {
-	if(!cmd || cmd->numArgs <= 0 ) {
+	if(!cmd || cmd->args[0] == NULL) {
 		printf("smash error: external: invalid command\n");
 		return INVALID_COMMAND;
 	} 
 	// the program we're trying to executre doesn't exist in the current path
-	// if (!fopen(cmd->args[0], "r")) { 
 	if (access(cmd->cmd, X_OK) != 0){
-		//perror("\nsmash error: external: cannot find program"); 
 		printf("smash error: external: cannot find program\n");
 	} else {
-		
 		if(execvp(cmd->args[0],cmd->args) == -1) {
 			printf("smash error: external: invalid command\n");
 			return COMMAND_FAILED;
