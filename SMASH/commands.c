@@ -454,6 +454,14 @@ int handleFg(Command* cmd, Job** jobsTable) {
 	return COMMAND_SUCCESS;
 }
 
+/**
+ * @brief will return a stopped command to run in background.
+ *		  Input: bg [job id] - continue job with job id in background
+ * 		         bg - continue job with maximum job id in background
+ * @param cmd pointer to command object by user
+ * @param jobsTable pointer to job table 
+ * @return 
+ */
 int handleBg(Command* cmd, Job** jobsTable){
 	// check arguments
 	if (!cmd || !jobsTable || cmd->numArgs > 1) {
