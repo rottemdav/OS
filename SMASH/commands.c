@@ -299,19 +299,28 @@ int handleCd(Command* cmd) {
 	char curr_path[1024];
     if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
         return INVALID_COMMAND;
-    }
+	}
     // previous path check - return invalid if there's no prev path
-	if (strcmp(cmd->args[1],"-") == 0) {
+	if (strcmp(cmd->args[1], "-") == 0) {
         if (strlen(path) == 0) { // the argument is "-" and there's no previous path			
             printf("smash error: old pwd not set\n");
             return INVALID_COMMAND;
-        } else {
-            if (chdir(path) == -1) {
-				return COMMAND_FAILED;
-        	}
-			strcpy(path, curr_path);
-			return COMMAND_SUCCESS;
-    	}
+		}
+		
+		// Switch to previous path
+		if (chdir(path) == -1){
+			return COMMAND_FAILED;
+		}
+		strncpy(path, curr_path, sizeof(path));
+		return COMMAND_SUCCESS;
+		// } else {
+        //     if (chdir(path) == -1) {
+		// 		return COMMAND_FAILED;
+        // 	}
+		// 	if (strcpy(path, curr_path) == 0) return COMMAND_SUCCESS;
+		// 	return COMMAND_FAILED;
+    	// }
+	}
 
     // parent directory command
     if (strcmp(cmd->args[1], "..") == 0) {
@@ -320,16 +329,16 @@ int handleCd(Command* cmd) {
 		    }
 			if (strcpy(path, curr_path) == 0) return COMMAND_SUCCESS;
 			return COMMAND_FAILED;
-		}
-    }
-
+	}
+    
     // none of the above - check for valid path and then switch to it
     if ((strchr(cmd->args[1], '/')) == NULL) {
         printf("smash error: cd: target directory does not exist\n");
         return INVALID_COMMAND;
     } else {
         if (chdir(cmd->args[1]) == -1) {
-           return COMMAND_FAILED; 
+			printf("smash error: cd: target directory does not exist\n");
+        	return COMMAND_FAILED; 
         }
 		strcpy(path, curr_path);
         return COMMAND_SUCCESS;
@@ -338,7 +347,6 @@ int handleCd(Command* cmd) {
 
 int handleJobs(Command* cmd, Job** jobsTable) {
 	if (cmd->numArgs>0) {
-		printf("smash error: jobs: expected 0 arguments\n");
 		printf("smash error: jobs: expected 0 arguments\n");
 		return INVALID_COMMAND;
 	}
