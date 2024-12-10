@@ -14,10 +14,10 @@
 =============================================================================*/
 #define NUM_JOBS 100
 
-enum status {
+enum jobStatus {
     ERROR = -1,
     SUCCESS = 0
-} status;
+};
 
 // definition of the data structure that will hold the jobs 
 
