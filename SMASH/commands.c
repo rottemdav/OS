@@ -471,7 +471,8 @@ int handleBg(Command* cmd, Job** jobsTable){
 			}
 			
 			// print the command and pid 
-			printf("\n%s: %d", cmd->cmdFull, jobsTable[jobId - 1]->jobPid);
+			printf("%s: %d\n", jobsTable[jobId - 1]->cmdString,
+							   jobsTable[jobId - 1]->jobPid);
 			
 			// set as not stopped in table
 			continueJob(jobId, jobsTable);
@@ -492,7 +493,8 @@ int handleBg(Command* cmd, Job** jobsTable){
 				if (jobsTable[i]->isStopped){ // if job is stopped
 					
 					// print command nad pid
-					printf("\n%s: %d", cmd->cmdFull, jobsTable[i]->jobPid);
+					printf("%s: %d\n", jobsTable[i]->cmdString,
+							   		   jobsTable[i]->jobPid);
 					
 					// set as not stopped in table (i+1 because we send jobId (1-100))
 					continueJob(i+1, jobsTable);
@@ -508,7 +510,7 @@ int handleBg(Command* cmd, Job** jobsTable){
 				}
 			} 
 		}
-		printf("\nsmash error: bg: there are no stopped jobs to resume");
+		printf("smash error: bg: there are no stopped jobs to resume\n");
 		return COMMAND_SUCCESS;
 	}
 }
