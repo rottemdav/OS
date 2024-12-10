@@ -19,12 +19,28 @@ char path[1024] ="";
 	// Check that outCmd pointer is not null
 	if (!outCmd) return MEM_ALLOC_ERR;
 
+	// Remove the newline from user input and replace with null-terminated
+	int len = strlen(line);
+	if (len > 0 && line[len - 1] == '\n') line[len - 1] = '\0';
+
+	// Copy the whole user input (full command)
+	outCmd->cmdFull = (char*)malloc(sizeof(char)*strlen(line) + 1);
+	if (!(outCmd->cmdFull)) return MEM_ALLOC_ERR; 
+	strncpy(outCmd->cmdFull, line, strlen(line));
+	outCmd->cmdFull[strlen(line)] = '\0';
+
 	// ----------- Parsing command  --------------- //
 	char* delimiters = " \t\n"; //parsing should be done by spaces, tabs or newlines
 	char* cmd = strtok(line, delimiters); //read strtok documentation - parses string by delimiters
 	
 	//this means no tokens were found, most like since command is invalid
-	if (!cmd) return INVALID_COMMAND; 
+	if (!cmd) {
+		if (outCmd->cmdFull){
+			free(outCmd->cmdFull);
+			outCmd->cmdFull = NULL;
+		}
+		return INVALID_COMMAND; 
+	}
 
 	char* args[MAX_ARGS];
 	int numArgs = 0;
@@ -39,13 +55,6 @@ char path[1024] ="";
 
 	// ----------- Returning command --------------- //
 	// Allocate memory and copy command string to outCmd
-
-	// Copy the whole user input (full command)
-	outCmd->cmdFull = (char*)malloc(sizeof(char)*strlen(line) + 1);
-	if (!(outCmd->cmdFull)) return MEM_ALLOC_ERR;
-	
-	strncpy(outCmd->cmdFull, line, strlen(line));
-	outCmd->cmdFull[strlen(line)] = '\0';
 
 	// Copy only the command name
 	outCmd->cmd = (char*)malloc(sizeof(char)*strlen(args[0]) + 1);
@@ -176,10 +185,10 @@ int handleCmd(Command* cmd, Job** jobsTable){
 
 	// Check if command should run in background, if so remove the % argument
 	bool isBg = false;
-	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs - 1], "%") == 0){
+	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs], "%") == 0){
 		isBg = true;
-		free(cmd->args[cmd->numArgs - 1]);
-		cmd->args[cmd->numArgs - 1] = NULL;
+		free(cmd->args[cmd->numArgs]);
+		cmd->args[cmd->numArgs] = NULL;
 		cmd->numArgs--;
 	}
 
@@ -219,7 +228,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				exit(0);
 			} else {
 				// parent process
-				addJob(jobsTable, pid, cmd->cmd);
+				addJob(jobsTable, pid, cmd->cmdFull);
 				int status;
 				
 				// wait for child process to finish
@@ -252,7 +261,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 			exit(0);
 		} else {
 			// parent process
-			addJob(jobsTable, pid, cmd->cmd);
+			addJob(jobsTable, pid, cmd->cmdFull);
 		}
 	}
 	
@@ -339,7 +348,6 @@ int handleCd(Command* cmd) {
 int handleJobs(Command* cmd, Job** jobsTable) {
 	if (cmd->numArgs>0) {
 		printf("smash error: jobs: expected 0 arguments\n");
-		printf("smash error: jobs: expected 0 arguments\n");
 		return INVALID_COMMAND;
 	}
 	if (jobsTable) {
@@ -414,7 +422,7 @@ int handleFg(Command* cmd, Job** jobsTable) {
 		jobId = maxJobNum(jobsTable); //check this correctness
 	} 
 	//print to stdout the cmd and pid
-	printf("%s %d\n", jobsTable[jobId]->cmdName, jobsTable[jobId]->jobNum);
+	printf("%s %d\n", jobsTable[jobId]->cmdString, jobsTable[jobId]->jobNum);
 
 	//send SIGCONT to the process to activate it again
 	if (kill(jobsTable[jobId]->jobPid,SIGCONT) == -1 ) {
@@ -519,7 +527,7 @@ for ( int i = 0; i < NUM_JOBS; i++ ) {
 				}
 		} else if (strcmp(cmd->args[1],"kill") == 0 && cmd->numArgs > 1) {
 			// print job id and its command
-			printf("[%d] %s", jobsTable[i]->jobNum, jobsTable[i]->cmdName);
+			printf("[%d] %s", jobsTable[i]->jobNum, jobsTable[i]->cmdString);
 
 			// send SIGTERM with message
 			if (kill(jobsTable[i]->jobPid, SIGTERM) == -1) {
@@ -628,14 +636,14 @@ int handleExternal(Command* cmd, Job** jobsTable) {
 		printf("smash error: external: invalid command\n");
 		return INVALID_COMMAND;
 	} 
-	//fprintf(stderr, "\n");
-
 	// the program we're trying to executre doesn't exist in the current path
-	if (!fopen(cmd->args[0], "r")) { 
-		//perror("\nsmash error: external: cannot find program");
+	// if (!fopen(cmd->args[0], "r")) { 
+	if (access(cmd->cmd, X_OK) != 0){
+		//perror("\nsmash error: external: cannot find program"); 
 		printf("smash error: external: cannot find program\n");
 	} else {
-			if(execvp(cmd->args[0],cmd->args) == -1) {
+		
+		if(execvp(cmd->args[0],cmd->args) == -1) {
 			printf("smash error: external: invalid command\n");
 			return COMMAND_FAILED;
 		}

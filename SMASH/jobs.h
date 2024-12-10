@@ -7,6 +7,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 /*=============================================================================
 * includes, defines, usings
@@ -24,7 +25,7 @@ typedef struct job {
     int jobNum; // job id
     bool isFree; // is the 
     pid_t jobPid;
-    char* cmdName;
+    char* cmdString;
     time_t startTime;
     bool isStopped;
 } Job;
