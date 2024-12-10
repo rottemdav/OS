@@ -129,11 +129,13 @@ void destroyTable(Job** jobsTable){
 
     for (int i = 0; i < NUM_JOBS; i++){
         if (jobsTable[i]){
-            if (jobsTable[i]->cmdName) free(jobsTable[i]->cmdName);
-            free(jobsTable[i]);
+            if (jobsTable[i]->cmdName) {
+                free(jobsTable[i]->cmdName);
+            } 
+        free(jobsTable[i]);
         }
-        free(jobsTable);
     }
+    free(jobsTable);
 }
 
 

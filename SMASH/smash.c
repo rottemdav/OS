@@ -45,6 +45,7 @@ int main(int argc, char* argv[])
 
 		//parsing new command
 		if (parseCmd(_cmd, newCmd) != 0 ) {
+			freeCommand(newCmd);
 			free(newCmd);
 			continue;
 		}
@@ -56,6 +57,7 @@ int main(int argc, char* argv[])
 		_line[0] = '\0';
 		_cmd[0] = '\0';
 
+		freeCommand(newCmd);
 		free(newCmd);
 	}
 	

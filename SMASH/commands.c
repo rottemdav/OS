@@ -61,15 +61,28 @@ char path[1024] ="";
 
 	// Allocate memory and copy command arguments to outCmd
 	for (int i = 0; i < MAX_ARGS; i++){
-		if (i == 0 || i >= numArgs) outCmd->args[i] = NULL;
-		else {
-			outCmd->args[i] = (char*)malloc(sizeof(char) * strlen(args[i]) + 1);
-			if (!outCmd->args[i]) {
+		// First argument is the command itself
+		if (i == 0) {
+			outCmd->args[0] = (char*)malloc(sizeof(char) * strlen(args[0]) + 1);
+			if (!outCmd->args[0]) {
 				freeCommand(outCmd);
 				return MEM_ALLOC_ERR;
 			}
-			strncpy(outCmd->args[i], args[i], strlen(args[i]));
-			outCmd->args[i][strlen(args[i])] = '\0';
+			strncpy(outCmd->args[0], args[0], strlen(args[0]));
+			outCmd->args[i][strlen(args[0])] = '\0';
+		}
+		else {
+			if (i <= numArgs){
+				outCmd->args[i] = (char*)malloc(sizeof(char) * strlen(args[i]) + 1);
+				if (!outCmd->args[i]) {
+					freeCommand(outCmd);
+					return MEM_ALLOC_ERR;
+				}
+				strncpy(outCmd->args[i], args[i], strlen(args[i]));
+				outCmd->args[i][strlen(args[i])] = '\0';
+			} else {
+				outCmd->args[i] = NULL;
+			}
 		}
 	}
 
@@ -79,11 +92,21 @@ char path[1024] ="";
 
 void freeCommand(Command* cmd){
 	if (!cmd) return;
-	free(cmd->cmd); // Free the command string
-	free(cmd->cmdFull); // Free the full commnad string
+
+	if (cmd->cmd){
+		free(cmd->cmd);
+		cmd->cmd = NULL;
+	}
+
+	if (cmd->cmdFull){
+		free(cmd->cmdFull);
+		cmd->cmdFull = NULL;
+	}
+	
     for (int i = 0; i < MAX_ARGS; i++) {
         if (cmd->args[i]) {
             free(cmd->args[i]); // Free each argument
+			cmd->args[i] = NULL;
         }
     }
 }
@@ -149,6 +172,8 @@ int handleCmd(Command* cmd, Job** jobsTable){
 	// Update job table
 	checkJobs(jobsTable);
 	
+	bool isBuiltIn = isBuiltInCmd(cmd);
+
 	// Check if command should run in background, if so remove the % argument
 	bool isBg = false;
 	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs - 1], "%") == 0){
@@ -158,8 +183,9 @@ int handleCmd(Command* cmd, Job** jobsTable){
 		cmd->numArgs--;
 	}
 
+	
+
 	// Check if command is one of the built-in commands
-	bool isBuiltIn = isBuiltInCmd(cmd);
 	
 	/* Scenariouus by order:
 		1. If not in background and built-in -> run built-in and return
@@ -240,7 +266,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 int handleShowPid(Command* cmd) {
 	//check for extra arguments
 	if ( cmd->args[1] ) {
-		printf("\nsmash error: showpid: expected 0 arguments");
+		printf("smash error: showpid: expected 0 arguments\n");
 		return INVALID_COMMAND;
 	}
 	pid_t pid = getpid();
@@ -265,8 +291,8 @@ int handlePwd(Command* cmd) {
 
 int handleCd(Command* cmd) {
     // more than 1 argument check
-	if (!cmd->cmd || cmd->numArgs>1) {
-        printf("smash error: cd: expected 1 arguments");
+	if (!cmd->cmd || cmd->numArgs>1 || cmd->numArgs == 0) {
+        printf("smash error: cd: expected 1 arguments\n");
 		return INVALID_COMMAND;
 	}
 
@@ -274,11 +300,10 @@ int handleCd(Command* cmd) {
     if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
         return INVALID_COMMAND;
     }
-
     // previous path check - return invalid if there's no prev path
 	if (strcmp(cmd->args[1],"-") == 0) {
         if (strlen(path) == 0) { // the argument is "-" and there's no previous path			
-            printf("\nsmash error: old pwd not set");
+            printf("smash error: old pwd not set\n");
             return INVALID_COMMAND;
         } else {
             if (chdir(path) == -1) {
@@ -289,18 +314,18 @@ int handleCd(Command* cmd) {
     	}
 
     // parent directory command
-    if (strcmp(cmd->args[1],"..") == 0) {
+    if (strcmp(cmd->args[1], "..") == 0) {
             if(chdir("..") == -1) {; // for now the function doesn't take care of a case when the parent directory is not accesible
 				return COMMAND_FAILED;
 		    }
-			strcpy(path, curr_path);
-			return COMMAND_SUCCESS;
+			if (strcpy(path, curr_path) == 0) return COMMAND_SUCCESS;
+			return COMMAND_FAILED;
 		}
     }
 
     // none of the above - check for valid path and then switch to it
     if ((strchr(cmd->args[1], '/')) == NULL) {
-        printf("\nsmash error: cd: target directory does not exist");
+        printf("smash error: cd: target directory does not exist\n");
         return INVALID_COMMAND;
     } else {
         if (chdir(cmd->args[1]) == -1) {
@@ -313,8 +338,8 @@ int handleCd(Command* cmd) {
 
 int handleJobs(Command* cmd, Job** jobsTable) {
 	if (cmd->numArgs>0) {
-		printf("\nsmash error: jobs: expected 0 arguments");
-		printf("\nsmash error: jobs: expected 0 arguments");
+		printf("smash error: jobs: expected 0 arguments\n");
+		printf("smash error: jobs: expected 0 arguments\n");
 		return INVALID_COMMAND;
 	}
 	if (jobsTable) {
@@ -327,13 +352,13 @@ int handleJobs(Command* cmd, Job** jobsTable) {
 
 int handleKill(Command* cmd, Job** jobsTable) {
 	if (!cmd || !(cmd->cmd) || !(cmd->args[1]) || !(cmd->args[2])){
-		printf("\nsmash error: kill: invalid arguments");
+		printf("smash error: kill: invalid arguments\n");
 		return COMMAND_FAILED;
 	}
 
 	// Check arguments
 	if (cmd->numArgs != 2) { // check amount of arguments (command, signum, id)
-		printf("\nsmash error: kill: invalid arguments");
+		printf("smash error: kill: invalid arguments\n");
 		return COMMAND_FAILED;
 	}
 	// parse signal num
@@ -342,13 +367,13 @@ int handleKill(Command* cmd, Job** jobsTable) {
 	token = strtok(cmd->args[1], delim);
 	
 	if (token == NULL){
-		printf("\nsmash error: kill: invalid arguments");
+		printf("smash error: kill: invalid arguments\n");
 		return COMMAND_FAILED;
 	}
 
 	int signum = atoi(token);
 	if (signum < 1 || signum > 31) { // check if signal num is legal (1-31)
-		printf("\nsmash error: kill: invalid arguments");
+		printf("smash error: kill: invalid arguments\n");
 		return COMMAND_FAILED;
 	}
 
@@ -356,14 +381,14 @@ int handleKill(Command* cmd, Job** jobsTable) {
 	int jobId = atoi(cmd->args[2]);
 
 	if (jobId < 1 || jobId > NUM_JOBS){ // Check if job argument is valid
-		printf("\nsmash error: kill: invalid arguments");
+		printf("smash error: kill: invalid arguments\n");
 		return COMMAND_FAILED;
 	}
 
 	// send signal if job exist on job table
 	if (jobsTable[jobId - 1]->isFree) {
 		//perror("\njob id %d does not exist", jobId);
-		fprintf(stderr, "\nsmash error: job id %d does not exist", jobId);
+		fprintf(stderr, "smash error: job id %d does not exist\n", jobId);
 		return COMMAND_FAILED;
 	} else {
 		if  (kill(jobsTable[jobId - 1]->jobPid, signum) == -1) {
@@ -372,7 +397,7 @@ int handleKill(Command* cmd, Job** jobsTable) {
 			return COMMAND_FAILED;
 		}
 	}
-	printf("\nsignal %d was sent to pid %d",signum ,jobsTable[jobId - 1]->jobPid); 
+	printf("signal %d was sent to pid %d\n",signum ,jobsTable[jobId - 1]->jobPid); 
 	return COMMAND_SUCCESS;
 }
 
@@ -380,7 +405,7 @@ int handleFg(Command* cmd, Job** jobsTable) {
 	if (!cmd || !jobsTable) return MEM_ALLOC_ERR;
 	if (!cmd->args[1] && maxJobNum(jobsTable) == 0 ) {
 		//perror("\nsmash error: fg: jobs list is empty");
-		printf("\nsmash error: fg: jobs list is empty");
+		printf("smash error: fg: jobs list is empty\n");
 		return INVALID_COMMAND;
 	}
 	int jobId = atoi(cmd->args[1]);
@@ -415,25 +440,25 @@ int handleFg(Command* cmd, Job** jobsTable) {
 int handleBg(Command* cmd, Job** jobsTable){
 	// check arguments
 	if (!cmd || !jobsTable || cmd->numArgs > 1) {
-		printf("\nsmash error: kill: invalid arguments");
+		printf("smash error: kill: invalid arguments\n");
 		return COMMAND_FAILED;
 	}
 
 	if (cmd->args[1] != NULL){ // The user wants to stop a specific job
 		int jobId = atoi(cmd->args[1]);
 		if (jobId < 1 || jobId > NUM_JOBS){ // Check if job argument is valid
-			printf("\nsmash error: kill: invalid arguments");
+			printf("smash error: kill: invalid arguments\n");
 			return COMMAND_FAILED;
 		}
 
 		// check if job exists
 		if (jobsTable[jobId - 1]->isFree) {
-			printf("\nsmash error: bg: job id %d does not exist", jobId);
+			printf("smash error: bg: job id %d does not exist\n", jobId);
 			return COMMAND_FAILED;
 		} else {
 			// check if job is stopped
 			if (!(jobsTable[jobId - 1]->isStopped)) {
-				printf("\nsmash error: bg: job id %d is already in background", jobId);
+				printf("smash error: bg: job id %d is already in background\n", jobId);
 				return COMMAND_FAILED;
 			}
 			
@@ -515,7 +540,7 @@ for ( int i = 0; i < NUM_JOBS; i++ ) {
 					}
 				} else { // process terminated within 5 secs
 					jobsTable[i]->isFree = true;
-					printf("done");
+					printf("done\n");
 				}
 			}
 		} else {
@@ -543,7 +568,7 @@ int handleDiff(Command* cmd){
 	if (!cmd) return INVALID_COMMAND;
 	
 	if (cmd->numArgs > 2 || !(cmd->args[1]) || !(cmd->args[2])) {
-		printf("\nsmash error: diff: expected 2 arguments");
+		printf("smash error: diff: expected 2 arguments\n");
 	}
 	
 	// Check if path exist
@@ -552,13 +577,13 @@ int handleDiff(Command* cmd){
 	char* path2 = cmd->args[2];
 	
 	if (stat(path1, &stat1) != 0 || stat(path2, &stat2) != 0){
-		printf("\nsmash error: diff: expected valid paths for files");
+		printf("nsmash error: diff: expected valid paths for files\n");
 		return COMMAND_FAILED;
 	}
 
 	// Check if both paths are files and not directories
 	if (!S_ISREG(stat1.st_mode) || !S_ISREG(stat2.st_mode)) {
-		printf("\nsmash error: diff: paths are not files");
+		printf("smash error: diff: paths are not files\n");
 		return COMMAND_FAILED;
 	}
 
@@ -600,7 +625,7 @@ int handleDiff(Command* cmd){
 
 int handleExternal(Command* cmd, Job** jobsTable) {
 	if(!cmd || cmd->numArgs <= 0 ) {
-		printf("smash error: external: invalid command");
+		printf("smash error: external: invalid command\n");
 		return INVALID_COMMAND;
 	} 
 	//fprintf(stderr, "\n");
@@ -611,7 +636,7 @@ int handleExternal(Command* cmd, Job** jobsTable) {
 		printf("smash error: external: cannot find program\n");
 	} else {
 			if(execvp(cmd->args[0],cmd->args) == -1) {
-			printf("smash error: external: invalid command");
+			printf("smash error: external: invalid command\n");
 			return COMMAND_FAILED;
 		}
 	}
