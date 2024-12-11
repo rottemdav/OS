@@ -11,16 +11,23 @@
 
 #define MAX_LINE_SIZE 80
 #define MAX_ARGS 20
+#define MAX_COMMANDS 26
 
 /*=============================================================================
 * error definitions
 =============================================================================*/
-enum cmdStatus
-{
+enum cmdType {
+	COND_CMD = 0,
+	NOT_COND_CMD = 1,
+	LAST = 2,
+};
+
+enum cmdStatus {
 	COMMAND_SUCCESS = 0,
 	INVALID_COMMAND = 1,
 	MEM_ALLOC_ERR = 2,
 	COMMAND_FAILED = 3,
+	NEWLINE = 4,
 };
 
 /*=============================================================================
@@ -33,7 +40,29 @@ typedef struct cmd {
 	int numArgs;
 } Command;
 
-// Will parse the command into sections
+typedef struct compCmd {
+	char* line; // String
+	int type; // Type of dependency on the previous function
+} compCmd;
+
+/**
+ * @brief Parses a whole line and return array of commands strings if necessary
+ * 
+ * @param line pointer to user line input
+ * @param commandsArray pointer to array of commands. Will be set as NULL on calling.
+ * @param numCommands number of commands parsed out. input expected to be 0
+ * @return cmdStatus
+ */
+int parseLine(char* line, compCmd** commandsArray, int* numCommands);
+
+/**
+ * @brief Deallocate the memory of the commands array
+ * 
+ * @param commandsArray pointer to commands array
+ * @param count MAX_COMMANDS
+ */
+void freeCommandsArray(compCmd** commandsArray, int count);
+
 int parseCmd(char* line, Command* outCmd);
 
 void freeCommand(Command* cmd);

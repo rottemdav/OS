@@ -8,6 +8,130 @@ char prev_path[1024] ="";
 
 // --------- commands managment functions ---------- //
 
+int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
+	if (!line || !numCommands || !commandsArray) return INVALID_COMMAND;
+	else {
+		if (strlen(line) > MAX_LINE_SIZE) return INVALID_COMMAND;
+	}
+
+	// Allocate memory for array of compCmd objects 
+	// commandsArray = (compCmd**)malloc(MAX_COMMANDS * sizeof(compCmd*));
+	// if (!commandsArray) return MEM_ALLOC_ERR;
+	
+	// Memory allocation for each complex command object
+	for (int i = 0; i < MAX_COMMANDS; i++){
+		commandsArray[i] = (compCmd*)malloc(sizeof(compCmd));
+		if (!(commandsArray[i])){
+			freeCommandsArray(commandsArray, MAX_COMMANDS);
+			return MEM_ALLOC_ERR;
+		}
+	}
+	
+	*numCommands = 0;
+	int commandIndex = 0;
+	
+	
+
+	char* start = line;
+	char* end;
+	const char* delim = ";&"; // delimiters
+
+	while ((end = strpbrk(start, delim)) != NULL) {
+		// strpbrk(start, delim) searh the string start for first apperance of delim
+		// and sets end value to the that delimiter.
+		
+		if (*numCommands >= MAX_COMMANDS) {
+			freeCommandsArray(commandsArray, MAX_COMMANDS);
+			free(commandsArray);
+			commandsArray = NULL;
+			return COMMAND_FAILED;
+		}
+
+		char delimiter = *end; // Save the delimiter
+		*end = '\0'; // Isolating the token with null-term char
+
+		commandsArray[commandIndex]->line = 
+									(char*)malloc(sizeof(char)*strlen(start) + 1);
+		if (!commandsArray[commandIndex]->line){
+			freeCommandsArray(commandsArray, MAX_COMMANDS);
+			free(commandsArray);
+			commandsArray = NULL;	
+			return MEM_ALLOC_ERR;
+		}
+		strncpy(commandsArray[commandIndex]->line, start, strlen(start));
+		commandsArray[commandIndex]->line[strlen(start)] = '\0';
+
+		// Set the type of the function (meaning how it connects to he following cmd)
+		int type;
+		
+		if (commandIndex < (MAX_COMMANDS-1)){
+			// 1-25 commands context classification
+			if (delimiter == ';') type = NOT_COND_CMD;
+			else if ((end + 1) != NULL){
+				if (delimiter == '&' && *(end+1) == '&') type = COND_CMD;
+			}
+		} else { 
+			// 25 command classification (won;t get here but verifies anyway)
+			type = LAST;
+		}
+		commandsArray[commandIndex]->type = type;
+		
+		// finished adding a new command
+		
+		commandIndex++; // update the index will stop at 25
+		(*numCommands)++; // update the counter wiill stop at 25 
+		
+		if (type == NOT_COND_CMD) start = end + 1; // Advance the start pointer.
+		else start = end + 2; // Advance the start by 2
+		 
+	}
+
+	// Handle the last token
+	if (*start != '\0') {
+		if (*numCommands >= MAX_COMMANDS) {
+			freeCommandsArray(commandsArray, MAX_COMMANDS);
+			free(commandsArray);
+			commandsArray = NULL;
+			return COMMAND_FAILED; // Too many commands
+		}
+
+		// Allocate memory for the last command
+		commandsArray[*numCommands]->line = (char*)malloc(strlen(start) + 1);
+		if (!commandsArray[*numCommands]->line) {
+			freeCommandsArray(commandsArray, MAX_COMMANDS);
+			free(commandsArray);
+			commandsArray = NULL;
+			return MEM_ALLOC_ERR; // Memory allocation failure
+		}
+
+		// Copy the last command into the allocated memory
+		strncpy(commandsArray[*numCommands]->line, start,strlen(start) + 1);
+		commandsArray[commandIndex]->line[strlen(start)] = '\0';
+		// Set type of the last command
+		commandsArray[*numCommands]->type = LAST;
+
+		// Increment command count
+		(*numCommands)++;
+	}
+
+
+	return COMMAND_SUCCESS;
+	
+}
+
+void freeCommandsArray(compCmd** commandsArray, int count) {
+    for (int i = 0; i < count; i++) {
+		if (commandsArray[i]){
+			if (commandsArray[i]->line) {
+				free(commandsArray[i]->line);
+				commandsArray[i]->line = NULL;
+			}
+			free(commandsArray[i]);
+			commandsArray[i] = NULL;
+		}
+    }
+}
+
 // Function that parses command input and return a command struct 
  int parseCmd(char* line, Command* outCmd)
 {	
@@ -17,8 +141,24 @@ char prev_path[1024] ="";
 	else {
 		if (strlen(line) > MAX_LINE_SIZE) return INVALID_COMMAND;
 	}
+	
 	// Check that outCmd pointer is not null
 	if (!outCmd) return MEM_ALLOC_ERR;
+
+	// Handle newline command
+	if (strcmp(line, "\n") == 0) {
+		return NEWLINE;
+	}
+
+	// Remove the newline from user input and replace with null-terminated
+	int len = strlen(line);
+	if (len > 0 && line[len - 1] == '\n') line[len - 1] = '\0';
+
+	// Copy the whole user input (full command)
+	outCmd->cmdFull = (char*)malloc(sizeof(char)*strlen(line) + 1);
+	if (!(outCmd->cmdFull)) return MEM_ALLOC_ERR; 
+	strncpy(outCmd->cmdFull, line, strlen(line));
+	outCmd->cmdFull[strlen(line)] = '\0';
 
 	// ----------- Parsing command  --------------- //
 	char* delimiters = " \t\n"; //parsing should be done by spaces, tabs or newlines
@@ -92,24 +232,28 @@ char prev_path[1024] ="";
 
 
 void freeCommand(Command* cmd){
-	if (!cmd) return;
+	if (cmd == NULL) {
+		return;
+	} else {
+		// free arguments
+		for (int i = 0; i < MAX_ARGS; i++) {
+			if (cmd->args[i] != NULL) {
+				free(cmd->args[i]); // Free each argument
+				cmd->args[i] = NULL;
+			}
+    	}
 
-	if (cmd->cmd){
-		free(cmd->cmd);
-		cmd->cmd = NULL;
-	}
+		if (cmd->cmd != NULL){
+			free(cmd->cmd);
+			cmd->cmd = NULL;
+		}
 
-	if (cmd->cmdFull){
-		free(cmd->cmdFull);
-		cmd->cmdFull = NULL;
+		if (cmd->cmdFull != NULL){
+			free(cmd->cmdFull);
+			cmd->cmdFull = NULL;
+		}
 	}
-	
-    for (int i = 0; i < MAX_ARGS; i++) {
-        if (cmd->args[i]) {
-            free(cmd->args[i]); // Free each argument
-			cmd->args[i] = NULL;
-        }
-    }
+	return;
 }
 
 bool isBuiltInCmd(Command* cmd){
@@ -214,20 +358,27 @@ int handleCmd(Command* cmd, Job** jobsTable){
 			} else if (pid == 0){
 				// child process
 				setpgrp(); // Ensures that signals won't reach unless used kill
-				int cmdStatus = handleExternal(cmd, jobsTable);
-				if (cmdStatus != COMMAND_SUCCESS) exit(1);
+				
+				// If the external command wasn't executed properly, it will use
+				// exit(1), otherwise the execvp will exit
+				if (handleExternal(cmd, jobsTable) != COMMAND_SUCCESS) exit(1);
 
-				exit(0);
 			} else {
 				// parent process
-				addJob(jobsTable, pid, cmd->cmd);
+				setpgid(pid, pid); // Ensures the child process is in its own process group
+				tcsetpgrp(STDIN_FILENO,pid); // Set the child process group as the foreground
+
 				int status;
-				
-				// wait for child process to finish
-				if (waitpid(pid, &status, 0) < 0){
-					fprintf(stderr, "\n");
+				// Wait for the child process to terminate or stop
+				if (waitpid(pid, &status, WUNTRACED) == -1){
 					perror("smash error: waitpid failed");
 				}
+				
+				// Restore shell as foreground process
+				tcsetpgrp(STDIN_FILENO, getpid());
+
+				// Add process to the job table in case it was stopped
+				if (WIFSTOPPED(status)) addJob(jobsTable, pid, cmd->cmdFull);
 			}
 		}
 	} else { // --- in backrground ---
@@ -250,7 +401,6 @@ int handleCmd(Command* cmd, Job** jobsTable){
 
 			if (cmdStatus != COMMAND_SUCCESS) exit(1);
 
-			exit(0);
 		} else {
 			// parent process
 			addJob(jobsTable, pid, cmd->cmd);
@@ -657,18 +807,17 @@ int handleDiff(Command* cmd){
 }	
 
 int handleExternal(Command* cmd, Job** jobsTable) {
-	if(!cmd || cmd->numArgs <= 0 ) {
+	if(!cmd || cmd->args[0] == NULL) {
 		printf("smash error: external: invalid command\n");
 		return INVALID_COMMAND;
 	} 
 	//fprintf(stderr, "\n");
 
 	// the program we're trying to executre doesn't exist in the current path
-	if (!fopen(cmd->args[0], "r")) { 
-		//perror("\nsmash error: external: cannot find program");
+	if (access(cmd->cmd, X_OK) != 0){
 		printf("smash error: external: cannot find program\n");
 	} else {
-			if(execvp(cmd->args[0],cmd->args) == -1) {
+		if(execvp(cmd->args[0],cmd->args) == -1) {
 			printf("smash error: external: invalid command\n");
 			return COMMAND_FAILED;
 		}
