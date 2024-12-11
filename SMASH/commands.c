@@ -14,11 +14,22 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 	}
 
 	// Allocate memory for array of compCmd objects 
-	commandsArray = (compCmd**)malloc(MAX_COMMANDS * sizeof(compCmd*));
-	if (!commandsArray) return MEM_ALLOC_ERR;
+	// commandsArray = (compCmd**)malloc(MAX_COMMANDS * sizeof(compCmd*));
+	// if (!commandsArray) return MEM_ALLOC_ERR;
+	
+	// Memory allocation for each complex command object
+	for (int i = 0; i < MAX_COMMANDS; i++){
+		commandsArray[i] = (compCmd*)malloc(sizeof(compCmd));
+		if (!(commandsArray[i])){
+			freeCommandsArray(commandsArray, MAX_COMMANDS);
+			return MEM_ALLOC_ERR;
+		}
+	}
+	
 	*numCommands = 0;
 	int commandIndex = 0;
-
+	
+	
 
 	char* start = line;
 	char* end;
@@ -28,7 +39,7 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 		// strpbrk(start, delim) searh the string start for first apperance of delim
 		// and sets end value to the that delimiter.
 		
-		if (*numCommands >= MAX_COMMANDS || commandIndex == MAX_COMMANDS) {
+		if (*numCommands >= MAX_COMMANDS) {
 			freeCommandsArray(commandsArray, MAX_COMMANDS);
 			free(commandsArray);
 			commandsArray = NULL;
@@ -55,44 +66,54 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 		if (commandIndex < (MAX_COMMANDS-1)){
 			// 1-25 commands context classification
 			if (delimiter == ';') type = NOT_COND_CMD;
-			type = COND_CMD;
+			else if ((end + 1) != NULL){
+				if (delimiter == '&' && *(end+1) == '&') type = COND_CMD;
+			}
 		} else { 
 			// 25 command classification (won;t get here but verifies anyway)
 			type = LAST;
 		}
 		commandsArray[commandIndex]->type = type;
 		
-		// finished adding a new command		
+		// finished adding a new command
+		
 		commandIndex++; // update the index will stop at 25
 		(*numCommands)++; // update the counter wiill stop at 25 
-
-		start = end + 1; // Advance the start pointer. 
+		
+		if (type == NOT_COND_CMD) start = end + 1; // Advance the start pointer.
+		else start = end + 2; // Advance the start by 2
+		 
 	}
 
 	// Handle the last token
-	if (*start != '\0'){
+	// Handle the last token
+	if (*start != '\0') {
 		if (*numCommands >= MAX_COMMANDS) {
-            return COMMAND_FAILED; // Too many commands
-        }
-
-		if (start != NULL){
-			// Allocate memory and copy string of last command
-			commandsArray[*numCommands]->line = 
-									(char*)malloc(sizeof(char) * strlen(start) + 1);
-			if (!commandsArray[*numCommands]->line){
-				freeCommandsArray(commandsArray, MAX_COMMANDS);
-				free(commandsArray);
-				commandsArray = NULL;	
-				return MEM_ALLOC_ERR;
-			}
-			strncpy(commandsArray[*numCommands]->line, start, strlen(start));
-			commandsArray[*numCommands]->line[strlen(start)] = '\0';
-
-			// Set type of command as last
-			commandsArray[*numCommands]->type = LAST;
-			(*numCommands)++;
+			freeCommandsArray(commandsArray, MAX_COMMANDS);
+			free(commandsArray);
+			commandsArray = NULL;
+			return COMMAND_FAILED; // Too many commands
 		}
+
+		// Allocate memory for the last command
+		commandsArray[*numCommands]->line = (char*)malloc(strlen(start) + 1);
+		if (!commandsArray[*numCommands]->line) {
+			freeCommandsArray(commandsArray, MAX_COMMANDS);
+			free(commandsArray);
+			commandsArray = NULL;
+			return MEM_ALLOC_ERR; // Memory allocation failure
+		}
+
+		// Copy the last command into the allocated memory
+		strncpy(commandsArray[*numCommands]->line, start,strlen(start) + 1);
+		commandsArray[commandIndex]->line[strlen(start)] = '\0';
+		// Set type of the last command
+		commandsArray[*numCommands]->type = LAST;
+
+		// Increment command count
+		(*numCommands)++;
 	}
+
 
 	return COMMAND_SUCCESS;
 	
@@ -100,9 +121,13 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 
 void freeCommandsArray(compCmd** commandsArray, int count) {
     for (int i = 0; i < count; i++) {
-		if (commandsArray[i]->line) {
-			free(commandsArray[i]->line);
-			commandsArray[i]->line = NULL;
+		if (commandsArray[i]){
+			if (commandsArray[i]->line) {
+				free(commandsArray[i]->line);
+				commandsArray[i]->line = NULL;
+			}
+			free(commandsArray[i]);
+			commandsArray[i] = NULL;
 		}
     }
 }
