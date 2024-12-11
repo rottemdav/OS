@@ -15,13 +15,15 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 	}
 	
 	// Memory allocation for each complex command object
-	for (int i = 0; i < MAX_COMMANDS; i++){
+	for (int i = 0; i < MAX_COMMANDS; i++) {
 		commandsArray[i] = (compCmd*)malloc(sizeof(compCmd));
-		if (!(commandsArray[i])){
+		if (commandsArray[i] == NULL) {
 			freeCommandsArray(commandsArray, MAX_COMMANDS);
 			return MEM_ALLOC_ERR;
 		}
+    	commandsArray[i]->line = NULL; // Initialize line to NULL
 	}
+
 	
 	*numCommands = 0;
 	int commandIndex = 0;
@@ -36,8 +38,6 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 		
 		if (*numCommands >= MAX_COMMANDS) {
 			freeCommandsArray(commandsArray, MAX_COMMANDS);
-			free(commandsArray);
-			commandsArray = NULL;
 			return COMMAND_FAILED;
 		}
 
@@ -48,8 +48,6 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 									(char*)malloc(sizeof(char)*strlen(start) + 1);
 		if (!commandsArray[commandIndex]->line){
 			freeCommandsArray(commandsArray, MAX_COMMANDS);
-			free(commandsArray);
-			commandsArray = NULL;	
 			return MEM_ALLOC_ERR;
 		}
 		strncpy(commandsArray[commandIndex]->line, start, strlen(start));
@@ -84,8 +82,6 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 	if (*start != '\0') {
 		if (*numCommands >= MAX_COMMANDS) {
 			freeCommandsArray(commandsArray, MAX_COMMANDS);
-			free(commandsArray);
-			commandsArray = NULL;
 			return COMMAND_FAILED; // Too many commands
 		}
 
@@ -93,8 +89,6 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 		commandsArray[*numCommands]->line = (char*)malloc(strlen(start) + 1);
 		if (!commandsArray[*numCommands]->line) {
 			freeCommandsArray(commandsArray, MAX_COMMANDS);
-			free(commandsArray);
-			commandsArray = NULL;
 			return MEM_ALLOC_ERR; // Memory allocation failure
 		}
 
@@ -114,17 +108,22 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 }
 
 void freeCommandsArray(compCmd** commandsArray, int count) {
+    if (commandsArray == NULL) {
+        return;
+    }
+
     for (int i = 0; i < count; i++) {
-		if (commandsArray[i]){
-			if (commandsArray[i]->line) {
-				free(commandsArray[i]->line);
-				commandsArray[i]->line = NULL;
-			}
-			free(commandsArray[i]);
-			commandsArray[i] = NULL;
-		}
+        if (commandsArray[i] != NULL) {
+            if (commandsArray[i]->line != NULL) {
+                free(commandsArray[i]->line);
+                commandsArray[i]->line = NULL;
+            }
+            free(commandsArray[i]);
+            commandsArray[i] = NULL;
+        }
     }
 }
+
 
 // Function that parses command input and return a command struct 
  int parseCmd(char* line, Command* outCmd)
@@ -175,17 +174,11 @@ void freeCommandsArray(compCmd** commandsArray, int count) {
 	// ----------- Returning command --------------- //
 	// Allocate memory and copy command string to outCmd
 
-	// Copy the whole user input (full command)
-	outCmd->cmdFull = (char*)malloc(sizeof(char)*strlen(line) + 1);
-	if (!(outCmd->cmdFull)) return MEM_ALLOC_ERR;
-	
-	strncpy(outCmd->cmdFull, line, strlen(line));
-	outCmd->cmdFull[strlen(line)] = '\0';
-
 	// Copy only the command name
 	outCmd->cmd = (char*)malloc(sizeof(char)*strlen(args[0]) + 1);
 	if (!outCmd->cmd){
-		free(outCmd->cmdFull);
+		free(outCmd->cmd);
+		outCmd->cmd = NULL;
 		return MEM_ALLOC_ERR;
 	} 
 	strncpy(outCmd->cmd, args[0], strlen(args[0]));
@@ -315,10 +308,10 @@ int handleCmd(Command* cmd, Job** jobsTable){
 
 	// Check if command should run in background, if so remove the % argument
 	bool isBg = false;
-	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs - 1], "%") == 0){
+	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs], "%") == 0){
 		isBg = true;
-		free(cmd->args[cmd->numArgs - 1]);
-		cmd->args[cmd->numArgs - 1] = NULL;
+		free(cmd->args[cmd->numArgs]);
+		cmd->args[cmd->numArgs] = NULL;
 		cmd->numArgs--;
 	}
 
@@ -398,7 +391,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 
 		} else {
 			// parent process
-			addJob(jobsTable, pid, cmd->cmd);
+			addJob(jobsTable, pid, cmd->cmdFull);
 		}
 	}
 	
@@ -662,7 +655,7 @@ int handleBg(Command* cmd, Job** jobsTable){
 				if (jobsTable[i]->isStopped){ // if job is stopped
 					
 					// print command nad pid
-					printf("\n%s: %d", cmd->cmdFull, jobsTable[i]->jobPid);
+					printf("%s: %d\n", cmd->cmdFull, jobsTable[i]->jobPid);
 					
 					// set as not stopped in table (i+1 because we send jobId (1-100))
 					continueJob(i+1, jobsTable);

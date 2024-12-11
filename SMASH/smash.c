@@ -42,6 +42,9 @@ int main(int argc, char* argv[])
 			perror("smash error: memory allocation unsuccessfull");
 			return 0;
 		}
+		for (int i = 0; i < MAX_COMMANDS; i++) {
+    		newCompCmdArray[i] = NULL;	
+		}	
 		int numOfCommands = 0;
 
 		// Check for failures in complex parse line function
