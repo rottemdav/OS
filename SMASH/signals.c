@@ -10,13 +10,13 @@ void sigintHandler(int sig) {
     printf("smash: caught CTRL+C\n");
 
     // Get the current foreground process group
-    pid_t fg_pgid = tcgetpgrp(STDIN_FILENO);
+    pid_t fg_pid = tcgetpgrp(STDIN_FILENO);
     
     // Check if the foreground process group isn't the shell
-    if (fg_pgid != getpgrp()) {
-        kill(-fg_pgid, SIGINT);
-        tcsetpgrp(STDIN_FILENO, getpgrp()); // Restore control to the shell
-        printf("smash: process %d was killed\n", fg_pgid);
+    if (fg_pid != getpid()) {
+        kill(-fg_pid, SIGINT);
+        //tcsetpgrp(STDIN_FILENO, getpgrp()); // Restore control to the shell
+        printf("smash: process %d was killed\n", fg_pid);
     }
 }
 
@@ -28,9 +28,9 @@ void sigtstpHandler(int sig){
     pid_t fg_pgid = tcgetpgrp(STDIN_FILENO);
     
     // Check if the foreground process group isn't the shell
-    if (fg_pgid != getpgrp()) {
+    if (fg_pgid != getpid()) {
         kill(-fg_pgid, SIGTSTP);
-        tcsetpgrp(STDIN_FILENO, getpgrp()); // Restore control to the shell
+        //tcsetpgrp(STDIN_FILENO, getpgrp()); // Restore control to the shell
         printf("smash: process %d was stopped\n", fg_pgid);
     }
 }

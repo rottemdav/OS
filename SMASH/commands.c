@@ -7,6 +7,79 @@ char path[1024] ="";
 
 // --------- commands managment functions ---------- //
 
+int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
+	if (!line || !numCommands || !commandsArray) return INVALID_COMMAND;
+	else {
+		if (strlen(line) > MAX_LINE_SIZE) return INVALID_COMMAND;
+	}
+
+	// Allocate memory for array of compCmd objects 
+	commandsArray = (compCmd**)malloc(MAX_COMMANDS * sizeof(compCmd*));
+	if (!commandsArray) return MEM_ALLOC_ERR;
+	*numCommands = 0;
+	int commandIndex = 0;
+
+
+	char* start = line;
+	char* end;
+	const char* delim = ";&"; // delimiters
+
+	while ((end = strpbrk(start, delim)) != NULL) {
+		// strpbrk(start, delim) searh the string start for first apperance of delim
+		// and sets end value to the that delimiter.
+		
+		if (*numCommands >= MAX_COMMANDS || commandIndex == MAX_COMMANDS) {
+			freeCommandsArray(commandsArray, MAX_COMMANDS);
+			free(commandsArray);
+			commandsArray = NULL;
+			return COMMAND_FAILED;
+		}
+
+		char delimiter = *end; // Save the delimiter
+		*end = '\0'; // Isolating the token with null-term char
+
+		commandsArray[commandIndex]->line = 
+									(char*)malloc(sizeof(char)*strlen(start) + 1);
+		if (!commandsArray[commandIndex]->line){
+			freeCommandsArray(commandsArray, MAX_COMMANDS);
+			free(commandsArray);
+			commandsArray = NULL;	
+			return MEM_ALLOC_ERR;
+		}
+		strncpy(commandsArray[commandIndex]->line, start, strlen(start));
+		commandsArray[commandIndex]->line[strlen(start)] = '\0';
+
+		// Set the type of the function (meaning how it connects to he following cmd)
+		int type;
+		
+		if (commandIndex < (MAX_COMMANDS-1)){
+			// 1-25 commands context classification
+			if (delimiter == ';') type = NOT_COND_CMD;
+			type = COND_CMD;
+		} else { 
+			// 25 command classification
+			type = LAST;
+		}
+		commandsArray[*numCommands]->type = type;
+		
+		// finished adding a new command		
+		commandIndex++; // update the index
+		*numCommands = commandIndex; // update the counter 
+	}
+
+	return COMMAND_SUCCESS;
+	
+}
+
+void freeCommandsArray(compCmd** commandsArray, int count) {
+    for (int i = 0; i < count; i++) {
+		if (commandsArray[i]->line) {
+			free(commandsArray[i]->line);
+			commandsArray[i]->line = NULL;
+		}
+    }
+}
+
 // Function that parses command input and return a command struct 
  int parseCmd(char* line, Command* outCmd)
 {	
@@ -16,8 +89,14 @@ char path[1024] ="";
 	else {
 		if (strlen(line) > MAX_LINE_SIZE) return INVALID_COMMAND;
 	}
+	
 	// Check that outCmd pointer is not null
 	if (!outCmd) return MEM_ALLOC_ERR;
+
+	// Handle newline command
+	if (strcmp(line, "\n") == 0) {
+		return NEWLINE;
+	}
 
 	// Remove the newline from user input and replace with null-terminated
 	int len = strlen(line);
@@ -100,24 +179,28 @@ char path[1024] ="";
 
 
 void freeCommand(Command* cmd){
-	if (!cmd) return;
+	if (cmd == NULL) {
+		return;
+	} else {
+		// free arguments
+		for (int i = 0; i < MAX_ARGS; i++) {
+			if (cmd->args[i] != NULL) {
+				free(cmd->args[i]); // Free each argument
+				cmd->args[i] = NULL;
+			}
+    	}
 
-	if (cmd->cmd){
-		free(cmd->cmd);
-		cmd->cmd = NULL;
-	}
+		if (cmd->cmd != NULL){
+			free(cmd->cmd);
+			cmd->cmd = NULL;
+		}
 
-	if (cmd->cmdFull){
-		free(cmd->cmdFull);
-		cmd->cmdFull = NULL;
+		if (cmd->cmdFull != NULL){
+			free(cmd->cmdFull);
+			cmd->cmdFull = NULL;
+		}
 	}
-	
-    for (int i = 0; i < MAX_ARGS; i++) {
-        if (cmd->args[i]) {
-            free(cmd->args[i]); // Free each argument
-			cmd->args[i] = NULL;
-        }
-    }
+	return;
 }
 
 bool isBuiltInCmd(Command* cmd){
@@ -222,7 +305,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 			} else if (pid == 0){
 				// child process
 				setpgrp(); // Ensures that signals won't reach unless used kill
-
+				
 				// If the external command wasn't executed properly, it will use
 				// exit(1), otherwise the execvp will exit
 				if (handleExternal(cmd, jobsTable) != COMMAND_SUCCESS) exit(1);
@@ -234,10 +317,12 @@ int handleCmd(Command* cmd, Job** jobsTable){
 
 				int status;
 				// Wait for the child process to terminate or stop
-				waitpid(pid, &status, WUNTRACED);
+				if (waitpid(pid, &status, WUNTRACED) == -1){
+					perror("smash error: waitpid failed");
+				}
 				
 				// Restore shell as foreground process
-				tcsetpgrp(STDIN_FILENO, getpgrp());
+				tcsetpgrp(STDIN_FILENO, getpid());
 
 				// Add process to the job table in case it was stopped
 				if (WIFSTOPPED(status)) addJob(jobsTable, pid, cmd->cmdFull);
