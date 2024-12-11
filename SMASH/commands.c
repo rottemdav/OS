@@ -13,10 +13,6 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 	else {
 		if (strlen(line) > MAX_LINE_SIZE) return INVALID_COMMAND;
 	}
-
-	// Allocate memory for array of compCmd objects 
-	// commandsArray = (compCmd**)malloc(MAX_COMMANDS * sizeof(compCmd*));
-	// if (!commandsArray) return MEM_ALLOC_ERR;
 	
 	// Memory allocation for each complex command object
 	for (int i = 0; i < MAX_COMMANDS; i++){
@@ -30,8 +26,6 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 	*numCommands = 0;
 	int commandIndex = 0;
 	
-	
-
 	char* start = line;
 	char* end;
 	const char* delim = ";&"; // delimiters
@@ -328,7 +322,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 		cmd->numArgs--;
 	}
 
-	
+	int retVal = COMMAND_FAILED;
 
 	// Check if command is one of the built-in commands
 	
@@ -361,8 +355,9 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				
 				// If the external command wasn't executed properly, it will use
 				// exit(1), otherwise the execvp will exit
-				if (handleExternal(cmd, jobsTable) != COMMAND_SUCCESS) exit(1);
-
+				if ((retVal = handleExternal(cmd, jobsTable)) != COMMAND_SUCCESS){
+					exit(1);
+				}
 			} else {
 				// parent process
 				setpgid(pid, pid); // Ensures the child process is in its own process group
@@ -398,7 +393,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 			} else {
 				cmdStatus = handleExternal(cmd, jobsTable);
 			}
-
+			retVal = cmdStatus;
 			if (cmdStatus != COMMAND_SUCCESS) exit(1);
 
 		} else {
@@ -409,7 +404,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 	
 	// Will free the command string and args, will still require main to free pointer
 	freeCommand(cmd); 
-	return COMMAND_SUCCESS;
+	return retVal;
 }
 
 // ------------- buil-in command implementation functions ----------- //
@@ -509,6 +504,7 @@ int handleCd(Command* cmd) {
 
 	if (chdir(cmd->args[1]) == -1) {
 		printf("smash error: cd: target directory does not exist\n");
+		//printf("hi \n");
 		return COMMAND_FAILED; 
 	}
 
@@ -521,7 +517,6 @@ int handleCd(Command* cmd) {
 
 int handleJobs(Command* cmd, Job** jobsTable) {
 	if (cmd->numArgs>0) {
-		printf("smash error: jobs: expected 0 arguments\n");
 		printf("smash error: jobs: expected 0 arguments\n");
 		return INVALID_COMMAND;
 	}
