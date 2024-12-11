@@ -86,7 +86,6 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 	}
 
 	// Handle the last token
-	// Handle the last token
 	if (*start != '\0') {
 		if (*numCommands >= MAX_COMMANDS) {
 			freeCommandsArray(commandsArray, MAX_COMMANDS);
