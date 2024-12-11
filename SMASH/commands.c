@@ -3,7 +3,8 @@
 #include "commands.h"
 #include "jobs.h"
 
-char path[1024] ="";
+char prev_path[1024] ="";
+//char curr_path[1024] = "";
 
 // --------- commands managment functions ---------- //
 
@@ -19,28 +20,12 @@ char path[1024] ="";
 	// Check that outCmd pointer is not null
 	if (!outCmd) return MEM_ALLOC_ERR;
 
-	// Remove the newline from user input and replace with null-terminated
-	int len = strlen(line);
-	if (len > 0 && line[len - 1] == '\n') line[len - 1] = '\0';
-
-	// Copy the whole user input (full command)
-	outCmd->cmdFull = (char*)malloc(sizeof(char)*strlen(line) + 1);
-	if (!(outCmd->cmdFull)) return MEM_ALLOC_ERR; 
-	strncpy(outCmd->cmdFull, line, strlen(line));
-	outCmd->cmdFull[strlen(line)] = '\0';
-
 	// ----------- Parsing command  --------------- //
 	char* delimiters = " \t\n"; //parsing should be done by spaces, tabs or newlines
 	char* cmd = strtok(line, delimiters); //read strtok documentation - parses string by delimiters
 	
 	//this means no tokens were found, most like since command is invalid
-	if (!cmd) {
-		if (outCmd->cmdFull){
-			free(outCmd->cmdFull);
-			outCmd->cmdFull = NULL;
-		}
-		return INVALID_COMMAND; 
-	}
+	if (!cmd) return INVALID_COMMAND; 
 
 	char* args[MAX_ARGS];
 	int numArgs = 0;
@@ -55,6 +40,13 @@ char path[1024] ="";
 
 	// ----------- Returning command --------------- //
 	// Allocate memory and copy command string to outCmd
+
+	// Copy the whole user input (full command)
+	outCmd->cmdFull = (char*)malloc(sizeof(char)*strlen(line) + 1);
+	if (!(outCmd->cmdFull)) return MEM_ALLOC_ERR;
+	
+	strncpy(outCmd->cmdFull, line, strlen(line));
+	outCmd->cmdFull[strlen(line)] = '\0';
 
 	// Copy only the command name
 	outCmd->cmd = (char*)malloc(sizeof(char)*strlen(args[0]) + 1);
@@ -185,10 +177,10 @@ int handleCmd(Command* cmd, Job** jobsTable){
 
 	// Check if command should run in background, if so remove the % argument
 	bool isBg = false;
-	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs], "%") == 0){
+	if (cmd->numArgs > 0 && strcmp(cmd->args[cmd->numArgs - 1], "%") == 0){
 		isBg = true;
-		free(cmd->args[cmd->numArgs]);
-		cmd->args[cmd->numArgs] = NULL;
+		free(cmd->args[cmd->numArgs - 1]);
+		cmd->args[cmd->numArgs - 1] = NULL;
 		cmd->numArgs--;
 	}
 
@@ -228,7 +220,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				exit(0);
 			} else {
 				// parent process
-				addJob(jobsTable, pid, cmd->cmdFull);
+				addJob(jobsTable, pid, cmd->cmd);
 				int status;
 				
 				// wait for child process to finish
@@ -261,7 +253,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 			exit(0);
 		} else {
 			// parent process
-			addJob(jobsTable, pid, cmd->cmdFull);
+			addJob(jobsTable, pid, cmd->cmd);
 		}
 	}
 	
@@ -285,77 +277,187 @@ int handleShowPid(Command* cmd) {
 
 int handlePwd(Command* cmd) {
 	//check for extra arguemtns 
+	char curr_path[1024];
 	if ( cmd->args[1] ) {
 		printf("smash error: pwd: expceted 0 arguments\n");
 		return INVALID_COMMAND;
 	}
 
-	if (getcwd(path, sizeof(path)) != NULL) {
-		printf("%s\n", path);
+	if (getcwd(curr_path, sizeof(curr_path)) != NULL) {
+		printf("%s\n", curr_path);
 		return COMMAND_SUCCESS;
 	} else {
 		return COMMAND_FAILED;
 	}
 }
 
-int handleCd(Command* cmd) {
+/*int handleCd(Command* cmd) {
+	char curr_path[1024];
     // more than 1 argument check
 	if (!cmd->cmd || cmd->numArgs>1 || cmd->numArgs == 0) {
         printf("smash error: cd: expected 1 arguments\n");
 		return INVALID_COMMAND;
 	}
 
-	char curr_path[1024];
-    if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
-        return INVALID_COMMAND;
-	}
+	//printf("cmd->args[0]: %s", cmd->args[0]);
     // previous path check - return invalid if there's no prev path
-	if (strcmp(cmd->args[1], "-") == 0) {
+	if (strcmp(cmd->args[1],"-") == 0) {
         if (strlen(path) == 0) { // the argument is "-" and there's no previous path			
             printf("smash error: old pwd not set\n");
             return INVALID_COMMAND;
+        } 
+
+		if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
+		return INVALID_COMMAND;
 		}
-		
-		// Switch to previous path
-		if (chdir(path) == -1){
+
+		//move to the previous path
+		if (chdir(path) == -1) {
+			printf("fail1");
 			return COMMAND_FAILED;
 		}
-		strncpy(path, curr_path, sizeof(path));
+		
+		strcpy(path, curr_path);
+
+		if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
+		return INVALID_COMMAND;
+		}
+
+		printf("updated path: %s\n", curr_path); // Debugging confirmation
 		return COMMAND_SUCCESS;
-		// } else {
-        //     if (chdir(path) == -1) {
-		// 		return COMMAND_FAILED;
-        // 	}
-		// 	if (strcpy(path, curr_path) == 0) return COMMAND_SUCCESS;
-		// 	return COMMAND_FAILED;
-    	// }
+		
 	}
 
     // parent directory command
     if (strcmp(cmd->args[1], "..") == 0) {
-            if(chdir("..") == -1) {; // for now the function doesn't take care of a case when the parent directory is not accesible
-				return COMMAND_FAILED;
-		    }
-			if (strcpy(path, curr_path) == 0) return COMMAND_SUCCESS;
+
+		if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
+        			return INVALID_COMMAND;
+			}
+		printf(" after getcwd: curr path: %s \n path: %s\n", curr_path, path);
+
+        if(chdir("..") == -1) {; // for now the function doesn't take care of a case when the parent directory is not accesible
 			return COMMAND_FAILED;
+		}
+
+		if (strcpy(path, curr_path) == 0) return COMMAND_SUCCESS;
+
+		if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
+				return INVALID_COMMAND;
+		}
+		printf(" after chdir: curr path: %s \n path: %s\n", curr_path, path);
+		return COMMAND_SUCCESS;
 	}
-    
+
     // none of the above - check for valid path and then switch to it
     if ((strchr(cmd->args[1], '/')) == NULL) {
         printf("smash error: cd: target directory does not exist\n");
         return INVALID_COMMAND;
     } else {
-        if (chdir(cmd->args[1]) == -1) {
-			printf("smash error: cd: target directory does not exist\n");
-        	return COMMAND_FAILED; 
-        }
+
+		if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
+			return INVALID_COMMAND;
+		}
+
+		if (chdir(cmd->args[1]) == -1) {
+			return COMMAND_FAILED; 
+		}
+
 		strcpy(path, curr_path);
-        return COMMAND_SUCCESS;
-    }
-}	
+
+		if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
+			return INVALID_COMMAND;
+		}
+
+		//strncpy(path, curr_path, 1024);
+		//path[strlen(curr_path)+ 1] = '\0';
+		printf("after strcpy: curr path: %s \npath: %s\n", curr_path, path);
+		return COMMAND_SUCCESS;
+		}
+	return COMMAND_FAILED;
+	}	*/
+
+int handleCd(Command* cmd) {
+	char curr_path[1024];
+	char temp[1024];            
+    // more than 1 argument check
+	if (!cmd->cmd || cmd->numArgs>1 || cmd->numArgs == 0) {
+        printf("smash error: cd: expected 1 arguments\n");
+		return INVALID_COMMAND;
+	}
+
+	//printf("cmd->args[0]: %s", cmd->args[0]);
+    // previous path check - return invalid if there's no prev path
+	if (strcmp(cmd->args[1],"-") == 0) {
+
+        if (strlen(prev_path) == 0) { // the argument is "-" and there's no previous path			
+            printf("smash error: old pwd not set\n");
+            return INVALID_COMMAND;
+        } 
+
+		if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
+		return INVALID_COMMAND;
+		}
+
+		//move to the previous path
+		if (chdir(prev_path) == -1) {
+			printf("fail1");
+			return COMMAND_FAILED;
+		}
+		
+		strcpy(temp, curr_path);
+
+		if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
+		return INVALID_COMMAND;
+		}
+
+		strcpy(prev_path, temp);
+		
+		return COMMAND_SUCCESS;
+		
+	}
+
+    // parent directory command
+    if (strcmp(cmd->args[1], "..") == 0) {
+
+		if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
+        			return INVALID_COMMAND;
+			}
+
+		strcpy (prev_path, curr_path);
+
+        if(chdir("..") == -1) {; // for now the function doesn't take care of a case when the parent directory is not accesible
+			return COMMAND_FAILED;
+		}
+
+		if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
+				return INVALID_COMMAND;
+		}
+		return COMMAND_SUCCESS;
+	}
+
+    // none of the above - check for valid path and then switch to it
+	if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
+		return INVALID_COMMAND;
+	}
+
+	strcpy(prev_path, curr_path);
+
+	if (chdir(cmd->args[1]) == -1) {
+		printf("smash error: cd: target directory does not exist\n");
+		return COMMAND_FAILED; 
+	}
+
+	if (getcwd(curr_path, sizeof(curr_path)) == NULL) {
+		return INVALID_COMMAND;
+	}
+
+	return COMMAND_SUCCESS;
+	}
 
 int handleJobs(Command* cmd, Job** jobsTable) {
 	if (cmd->numArgs>0) {
+		printf("smash error: jobs: expected 0 arguments\n");
 		printf("smash error: jobs: expected 0 arguments\n");
 		return INVALID_COMMAND;
 	}
@@ -454,14 +556,6 @@ int handleFg(Command* cmd, Job** jobsTable) {
 	return COMMAND_SUCCESS;
 }
 
-/**
- * @brief will return a stopped command to run in background.
- *		  Input: bg [job id] - continue job with job id in background
- * 		         bg - continue job with maximum job id in background
- * @param cmd pointer to command object by user
- * @param jobsTable pointer to job table 
- * @return 
- */
 int handleBg(Command* cmd, Job** jobsTable){
 	// check arguments
 	if (!cmd || !jobsTable || cmd->numArgs > 1) {
@@ -488,8 +582,7 @@ int handleBg(Command* cmd, Job** jobsTable){
 			}
 			
 			// print the command and pid 
-			printf("%s: %d\n", jobsTable[jobId - 1]->cmdString,
-							   jobsTable[jobId - 1]->jobPid);
+			printf("\n%s: %d", cmd->cmdFull, jobsTable[jobId - 1]->jobPid);
 			
 			// set as not stopped in table
 			continueJob(jobId, jobsTable);
@@ -510,8 +603,7 @@ int handleBg(Command* cmd, Job** jobsTable){
 				if (jobsTable[i]->isStopped){ // if job is stopped
 					
 					// print command nad pid
-					printf("%s: %d\n", jobsTable[i]->cmdString,
-							   		   jobsTable[i]->jobPid);
+					printf("\n%s: %d", cmd->cmdFull, jobsTable[i]->jobPid);
 					
 					// set as not stopped in table (i+1 because we send jobId (1-100))
 					continueJob(i+1, jobsTable);
@@ -527,7 +619,7 @@ int handleBg(Command* cmd, Job** jobsTable){
 				}
 			} 
 		}
-		printf("smash error: bg: there are no stopped jobs to resume\n");
+		printf("\nsmash error: bg: there are no stopped jobs to resume");
 		return COMMAND_SUCCESS;
 	}
 }
@@ -655,14 +747,14 @@ int handleExternal(Command* cmd, Job** jobsTable) {
 		printf("smash error: external: invalid command\n");
 		return INVALID_COMMAND;
 	} 
+	//fprintf(stderr, "\n");
+
 	// the program we're trying to executre doesn't exist in the current path
-	// if (!fopen(cmd->args[0], "r")) { 
-	if (access(cmd->cmd, X_OK) != 0){
-		//perror("\nsmash error: external: cannot find program"); 
+	if (!fopen(cmd->args[0], "r")) { 
+		//perror("\nsmash error: external: cannot find program");
 		printf("smash error: external: cannot find program\n");
 	} else {
-		
-		if(execvp(cmd->args[0],cmd->args) == -1) {
+			if(execvp(cmd->args[0],cmd->args) == -1) {
 			printf("smash error: external: invalid command\n");
 			return COMMAND_FAILED;
 		}
