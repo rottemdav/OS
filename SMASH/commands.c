@@ -57,14 +57,41 @@ int parseLine(char* line, compCmd** commandsArray, int* numCommands) {
 			if (delimiter == ';') type = NOT_COND_CMD;
 			type = COND_CMD;
 		} else { 
-			// 25 command classification
+			// 25 command classification (won;t get here but verifies anyway)
 			type = LAST;
 		}
-		commandsArray[*numCommands]->type = type;
+		commandsArray[commandIndex]->type = type;
 		
 		// finished adding a new command		
-		commandIndex++; // update the index
-		*numCommands = commandIndex; // update the counter 
+		commandIndex++; // update the index will stop at 25
+		(*numCommands)++; // update the counter wiill stop at 25 
+
+		start = end + 1; // Advance the start pointer. 
+	}
+
+	// Handle the last token
+	if (*start != '\0'){
+		if (*numCommands >= MAX_COMMANDS) {
+            return COMMAND_FAILED; // Too many commands
+        }
+
+		if (start != NULL){
+			// Allocate memory and copy string of last command
+			commandsArray[*numCommands]->line = 
+									(char*)malloc(sizeof(char) * strlen(start) + 1);
+			if (!commandsArray[*numCommands]->line){
+				freeCommandsArray(commandsArray, MAX_COMMANDS);
+				free(commandsArray);
+				commandsArray = NULL;	
+				return MEM_ALLOC_ERR;
+			}
+			strncpy(commandsArray[*numCommands]->line, start, strlen(start));
+			commandsArray[*numCommands]->line[strlen(start)] = '\0';
+
+			// Set type of command as last
+			commandsArray[*numCommands]->type = LAST;
+			(*numCommands)++;
+		}
 	}
 
 	return COMMAND_SUCCESS;
