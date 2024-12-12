@@ -335,7 +335,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 	if (!isBg){ // not in background
 		
 		if (isBuiltIn) { // build-in commaand
-			chooseBuiltIn(cmd, jobsTable);
+			retVal = chooseBuiltIn(cmd, jobsTable);
 		} else { // external command
 			pid_t pid = fork();
 
