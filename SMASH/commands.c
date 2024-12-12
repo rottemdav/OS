@@ -682,60 +682,75 @@ int handleBg(Command* cmd, Job** jobsTable){
 }
 
 int handleQuit(Command* cmd, Job** jobsTable) {
-// ~!!!~ the prints for each job are in the same line
+	// ~!!!~ the prints for each job are in the same line
 
-// if kill exists: kill all the jobs in ascending order
-//for each job in the table:
-for ( int i = 0; i < NUM_JOBS; i++ ) {
-	if (!jobsTable[i]->isFree) {
-		if (cmd->numArgs == 1) {
-			// kill job with SIGKILL
-			if (kill(jobsTable[i]->jobPid, SIGKILL) == -1 ) {
-				return COMMAND_FAILED;
-				}
-		} else if (strcmp(cmd->args[1],"kill") == 0 && cmd->numArgs > 1) {
-			// print job id and its command
-			printf("[%d] %s", jobsTable[i]->jobNum, jobsTable[i]->cmdString);
+	// if kill exists: kill all the jobs in ascending order
+	//for each job in the table:
+	if (!cmd || !jobsTable) {
+		return MEM_ALLOC_ERR;
+	}
 
-			// send SIGTERM with message
-			if (kill(jobsTable[i]->jobPid, SIGTERM) == -1) {
-				return COMMAND_FAILED;
-				
-			} else {
-				printf("sending SIGTERM... ");
-				
-				// wait 5 secs
-				sleep(5);
-				
-				if (kill(jobsTable[i]->jobPid,0) == 0 ){ // process still running after 5 secs
-				// send SIGKILL if not terminated
-					if(kill(jobsTable[i]->jobPid, SIGKILL) == -1) {
-						return COMMAND_FAILED; 
-					} else {
-							printf("sending SIGKILL... done");
+	for (int i = 0; i < NUM_JOBS; i++ ) {
+		if (!jobsTable[i]->isFree) {
+			if (cmd->numArgs == 1) {
+				// kill job with SIGKILL
+				if (kill(jobsTable[i]->jobPid, SIGKILL) == -1 ) {
+					return COMMAND_FAILED;
 					}
-				} else { // process terminated within 5 secs
-					jobsTable[i]->isFree = true;
-					printf("done\n");
-				}
-			}
-		} else {
-			fprintf(stderr, "\n");
-			perror("smash error:quit: unexpected arguments");
-			return COMMAND_FAILED;	
-		}
-	}
-} 
+			} else if (cmd->numArgs == 1) {
 
-// smash process waits for all of its childern to terminate.
-int status;
-int term_status = waitpid(-1, &status, 0);
-if (term_status == -1 ) { //all childern process have been terminated
-	destroyTable(jobsTable);
-	exit(0);
-	return SUCCESS;
-	}
-return INVALID_COMMAND;
+				if (!cmd->args[1]){
+					return MEM_ALLOC_ERR;
+
+				} else if (strcmp(cmd->args[1],"kill") == 0){
+					// print job id and its command
+					printf("[%d] %s", jobsTable[i]->jobNum, jobsTable[i]->cmdString);
+
+					// send SIGTERM with message
+					if (kill(jobsTable[i]->jobPid, SIGTERM) == -1) {
+						return COMMAND_FAILED;
+						
+					} else {
+						printf("sending SIGTERM... ");
+						
+						// wait 5 secs
+						sleep(5);
+
+						// process still running after 5 secs
+						if (kill(jobsTable[i]->jobPid,0) == 0 ){ 
+						// send SIGKILL if not terminated
+							if(kill(jobsTable[i]->jobPid, SIGKILL) == -1) {
+								return COMMAND_FAILED; 
+							} else {
+									printf("sending SIGKILL... done");
+							}
+						} else { // process terminated within 5 secs
+							jobsTable[i]->isFree = true;
+							printf("done\n");
+						}
+					}
+				} else {
+					fprintf(stderr, "\n");
+					perror("smash error:quit: unexpected arguments");
+					return COMMAND_FAILED;	
+				}
+			} else {
+				fprintf(stderr, "\n");
+				perror("smash error:quit: unexpected arguments");
+				return COMMAND_FAILED;	
+			}
+		}
+	} 
+
+	// smash process waits for all of its childern to terminate.
+	int status;
+	int term_status = waitpid(-1, &status, 0);
+	if (term_status == -1 ) { //all childern process have been terminated
+		//destroyTable(jobsTable);
+		exit(0);
+		return SUCCESS;
+		}
+	return INVALID_COMMAND;
 }
 
 
