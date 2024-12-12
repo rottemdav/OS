@@ -20,6 +20,10 @@ char _line[MAX_LINE_SIZE];
 // foreground process initialization 
 pid_t fgProc = 0;
 
+//flag to keep track of signals
+volatile sig_atomic_t sigintReceived = 0;
+volatile sig_atomic_t sigtstpReceived = 0;
+
 /*=============================================================================
 * main function
 =============================================================================*/
@@ -35,6 +39,7 @@ int main(int argc, char* argv[])
 	
 	while(1)
 	{
+
 		printf("smash > ");
 		fgets(_line, MAX_LINE_SIZE, stdin);
 		//copies the lines written in the shell to the cmd variable
@@ -142,5 +147,6 @@ int main(int argc, char* argv[])
 		free(jobsTable);
 		jobsTable = NULL;
 	}
+
 	return 0;
 }
