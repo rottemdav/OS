@@ -393,7 +393,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 		} else {
 			setpgid(pid, pid);
 			// parent process
-			addJob(jobsTable, pid, cmd->cmd);
+			addJob(jobsTable, pid, cmd->cmdFull);
 		}
 	}
 	
