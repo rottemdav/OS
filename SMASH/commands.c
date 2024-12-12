@@ -367,7 +367,10 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				fgProc = getpid();
 
 				// Add process to the job table in case it was stopped
-				if (WIFSTOPPED(status)) addJob(jobsTable, pid, cmd->cmdFull);
+				if (WIFSTOPPED(status)){
+					addJob(jobsTable, pid, cmd->cmdFull);
+					jobsTable[maxJobNum(jobsTable)-1]->isStopped = true;
+				}
 			}
 		}
 	} else { // --- in backrground ---
@@ -636,7 +639,7 @@ int handleBg(Command* cmd, Job** jobsTable){
 			}
 			
 			// print the command and pid 
-			printf("\n%s: %d", cmd->cmdFull, jobsTable[jobId - 1]->jobPid);
+			printf("%s: %d\n", cmd->cmdFull, jobsTable[jobId - 1]->jobPid);
 			
 			// set as not stopped in table
 			continueJob(jobId, jobsTable);

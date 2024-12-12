@@ -32,7 +32,6 @@ void sigtstpHandler(int sig){
     // Check if the foreground process group isn't the shell
     if (fgProc != getpid()) {
         kill(-fgProc, SIGTSTP);
-        //tcsetpgrp(STDIN_FILENO, getpgrp()); // Restore control to the shell
         printf("smash: process %d was stopped\n", fgProc);
     }
 }
