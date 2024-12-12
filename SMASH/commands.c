@@ -5,6 +5,7 @@
 
 char prev_path[1024] ="";
 //char curr_path[1024] = "";
+extern pid_t fgProc;
 
 // --------- commands managment functions ---------- //
 
@@ -353,8 +354,8 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				}
 			} else {
 				// parent process
-				setpgid(pid, pid); // Ensures the child process is in its own process group
-				tcsetpgrp(STDIN_FILENO,pid); // Set the child process group as the foreground
+				//setpgid(pid, pid); // Ensures the child process is in its own process group
+				fgProc = pid;
 
 				int status;
 				// Wait for the child process to terminate or stop
@@ -363,7 +364,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				}
 				
 				// Restore shell as foreground process
-				tcsetpgrp(STDIN_FILENO, getpid());
+				fgProc = getpid();
 
 				// Add process to the job table in case it was stopped
 				if (WIFSTOPPED(status)) addJob(jobsTable, pid, cmd->cmdFull);
@@ -390,8 +391,9 @@ int handleCmd(Command* cmd, Job** jobsTable){
 			if (cmdStatus != COMMAND_SUCCESS) exit(1);
 
 		} else {
+			setpgid(pid, pid);
 			// parent process
-			addJob(jobsTable, pid, cmd->cmdFull);
+			addJob(jobsTable, pid, cmd->cmd);
 		}
 	}
 	
@@ -796,20 +798,16 @@ int handleDiff(Command* cmd){
 
 int handleExternal(Command* cmd, Job** jobsTable) {
 	if(!cmd || cmd->args[0] == NULL) {
-		printf("smash error: external: invalid command\n");
+		fprintf(stderr, "smash error: external: invalid command\n");
 		return INVALID_COMMAND;
 	} 
-	//fprintf(stderr, "\n");
 
 	// the program we're trying to executre doesn't exist in the current path
-	if (access(cmd->cmd, X_OK) != 0){
-		printf("smash error: external: cannot find program\n");
-	} else {
-		if(execvp(cmd->args[0],cmd->args) == -1) {
-			printf("smash error: external: invalid command\n");
-			return COMMAND_FAILED;
-		}
+	if(execvp(cmd->args[0],cmd->args) == -1) {
+		printf("smash error: external: invalid command\n");
+		return COMMAND_FAILED;	
 	}
+
 	return COMMAND_SUCCESS;
 }
 

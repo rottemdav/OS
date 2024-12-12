@@ -5,18 +5,20 @@
 #include <stdlib.h>
 #include <termios.h>
 
+extern pid_t fgProc;
+
 // Signal handler for SIGINT (CTRL+C) signal interrupt
 void sigintHandler(int sig) {
     printf("smash: caught CTRL+C\n");
 
     // Get the current foreground process group
-    pid_t fg_pid = tcgetpgrp(STDIN_FILENO);
+    //pid_t fg_pid = tcgetpgrp(STDIN_FILENO);
     
     // Check if the foreground process group isn't the shell
-    if (fg_pid != getpid()) {
-        kill(-fg_pid, SIGINT);
+    if (fgProc != getpid()) {
+        kill(-fgProc, SIGINT);
         //tcsetpgrp(STDIN_FILENO, getpgrp()); // Restore control to the shell
-        printf("smash: process %d was killed\n", fg_pid);
+        printf("smash: process %d was killed\n", fgProc);
     }
 }
 
@@ -25,13 +27,13 @@ void sigtstpHandler(int sig){
     printf("smash: caught CTRL+Z\n");
 
     // Get the current foreground process group
-    pid_t fg_pgid = tcgetpgrp(STDIN_FILENO);
+    //pid_t fg_pgid = tcgetpgrp(STDIN_FILENO);
     
     // Check if the foreground process group isn't the shell
-    if (fg_pgid != getpid()) {
-        kill(-fg_pgid, SIGTSTP);
+    if (fgProc != getpid()) {
+        kill(-fgProc, SIGTSTP);
         //tcsetpgrp(STDIN_FILENO, getpgrp()); // Restore control to the shell
-        printf("smash: process %d was stopped\n", fg_pgid);
+        printf("smash: process %d was stopped\n", fgProc);
     }
 }
 

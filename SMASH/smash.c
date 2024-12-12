@@ -17,11 +17,16 @@
 =============================================================================*/
 char _line[MAX_LINE_SIZE];
 
+// foreground process initialization 
+pid_t fgProc = 0;
+
 /*=============================================================================
 * main function
 =============================================================================*/
 int main(int argc, char* argv[])
 {
+	fgProc = getpid();
+
 	char _cmd[MAX_LINE_SIZE];
 	Job** jobsTable = createTable();
 	if (!jobsTable) return 1;
