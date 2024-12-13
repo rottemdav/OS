@@ -349,7 +349,9 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				
 				// If the external command wasn't executed properly, it will use
 				// exit(1), otherwise the execvp will exit
-				if ((retVal = handleExternal(cmd, jobsTable)) != COMMAND_SUCCESS){
+				retVal = handleExternal(cmd, jobsTable);
+				if (retVal != COMMAND_SUCCESS && retVal != QUIT_CMD){
+					// Either invalid command / failed / memory allocation error  
 					exit(1);
 				}
 			} else {
@@ -391,11 +393,13 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				cmdStatus = handleExternal(cmd, jobsTable);
 			}
 			retVal = cmdStatus;
-			if (cmdStatus != COMMAND_SUCCESS) exit(1);
-
+			if (retVal != COMMAND_SUCCESS && retVal != QUIT_CMD){
+				// Either invalid command / failed / memory allocation error  
+				exit(1);
+			} 
 		} else {
-			setpgid(pid, pid);
 			// parent process
+			setpgid(pid, pid);
 			addJob(jobsTable, pid, cmd->cmdFull);
 		}
 	}
@@ -690,6 +694,17 @@ int handleQuit(Command* cmd, Job** jobsTable) {
 		return MEM_ALLOC_ERR;
 	}
 
+	// Check argument
+	if (cmd->numArgs == 0) {
+		if 
+	} else if (cmd->numArgs == 1){
+
+	} else {
+		printf("smash error: quit: unexpected arguments\n");
+		return COMMAND_FAILED;
+	}
+	
+
 	for (int i = 0; i < NUM_JOBS; i++ ) {
 		if (!jobsTable[i]->isFree) {
 			if (cmd->numArgs == 1) {
@@ -730,12 +745,10 @@ int handleQuit(Command* cmd, Job** jobsTable) {
 						}
 					}
 				} else {
-					fprintf(stderr, "\n");
 					perror("smash error:quit: unexpected arguments");
 					return COMMAND_FAILED;	
 				}
 			} else {
-				fprintf(stderr, "\n");
 				perror("smash error:quit: unexpected arguments");
 				return COMMAND_FAILED;	
 			}

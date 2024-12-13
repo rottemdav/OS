@@ -42,10 +42,12 @@ int main(int argc, char* argv[])
 		//buffering
 		_cmd[strlen(_line) + 1] = '\0';
 
+		bool isQuit = false;
+
 		compCmd** newCompCmdArray = (compCmd**)malloc(MAX_COMMANDS*sizeof(compCmd*));
 ;		if (!newCompCmdArray) {
-			perror("smash error: memory allocation unsuccessfull");
-			return 0;
+			printf("smash error: memory allocation unsuccessfull\n");
+			break;
 		}
 		for (int i = 0; i < MAX_COMMANDS; i++) {
     		newCompCmdArray[i] = NULL;	
@@ -59,8 +61,8 @@ int main(int argc, char* argv[])
 				free(newCompCmdArray);
 				newCompCmdArray = NULL;
 			}
-			perror("smash error: memory allocation unsuccessfull");
-			return 0;
+			printf("smash error: memory allocation unsuccessfull\n");
+			break; 
 		} else if (parseLineStat == COMMAND_FAILED) continue; // freed all memory 
 
 		// Arbitrary initializations 
@@ -76,11 +78,11 @@ int main(int argc, char* argv[])
 			// Memory allocation for single command
 			Command* newCmd = (Command*)malloc(sizeof(Command));
 			if (!newCmd) {
-				perror("smash error: memory allocation unsuccessfull");
-				return 0;
+				prinft("smash error: memory allocation unsuccessfull\n");
+				break;
 			}
 
-			// Check if command legal and parses command into newCmd
+			// Check if command legal and parse command into newCmd
 			int isCommandValid = parseCmd(newCompCmdArray[i]->line, newCmd);
 			if (isCommandValid != COMMAND_SUCCESS) {
 				if (newCmd != NULL){ // free memory of command in order to move on
@@ -93,14 +95,20 @@ int main(int argc, char* argv[])
 				if (i == 0){
 					// Execute command and save it's status
 					statCmd = handleCmd(newCmd, jobsTable);
+					
+					// Check if it's the quit command
+					if (statCmd == QUIT_CMD) isQuit = true;
 				} else {
 					if ((newCompCmdArray[i-1]->type == COND_CMD) && 
 														(statCmd == COMMAND_SUCCESS))
 					{
 						statCmd = handleCmd(newCmd, jobsTable);
 
+						// Checks if it's the quit command
+						if (statCmd == QUIT_CMD) isQuit = true;
+
 					} else if ((newCompCmdArray[i-1]->type == COND_CMD) &&
-														(statCmd != COMMAND_SUCCESS))
+								(statCmd != COMMAND_SUCCESS && statCmd != QUIT_CMD))
 					{
 						if (newCmd != NULL){
 							freeCommand(newCmd);
@@ -108,9 +116,12 @@ int main(int argc, char* argv[])
 							newCmd = NULL;
 						}
 						break; // no need to execute command because the command
-								  // before didn't executed properly
+							   // before didn't executed properly
 					} else {
 						statCmd = handleCmd(newCmd, jobsTable);
+
+						// Checks if it's the quit command
+						if (statCmd == QUIT_CMD) isQuit = true;
 					}
 				}
 				//printf("Status of [%d]: %d\n", i+1, statCmd); // check command return values print
@@ -120,6 +131,8 @@ int main(int argc, char* argv[])
 					free(newCmd);
 					newCmd = NULL;
 				}
+
+				if (isQuit) break;
 			}
 		} // end of for loop (iterated through all the commands in line)
 
@@ -134,9 +147,11 @@ int main(int argc, char* argv[])
 		_line[0] = '\0';
 		_cmd[0] = '\0';
 
-	}
+		// Check if quit command was sent
+		if (isQuit) break;
+	} // End of while
 	
-	//the program should reach here only if error inside the while loop occured
+	// Free memory of the jobs table, reached here after quit command or memory error
 	if (jobsTable){
 		destroyTable(jobsTable);
 		free(jobsTable);
