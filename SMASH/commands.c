@@ -585,12 +585,6 @@ int handleKill(Command* cmd, Job** jobsTable) {
 int handleFg(Command* cmd, Job** jobsTable) {
 	if (!cmd || !jobsTable) return MEM_ALLOC_ERR;
 
-/*	//fg is running a background process and this is forbidden
-	if (fgProc != getpid() ) {  
-		printf("smash error: fg: cannot run in background\n");
-		return INVALID_COMMAND;
-	}*/
-
 	if (!cmd->args[1] && maxJobNum(jobsTable) == 0 ) {
 		//perror("\nsmash error: fg: jobs list is empty");
 		printf("smash error: fg: jobs list is empty\n");
@@ -605,11 +599,9 @@ int handleFg(Command* cmd, Job** jobsTable) {
 		bool found = false;
 		for (int i = 0; i < NUM_JOBS; i ++) {
 			if (!found) {
-				if ((givenJobId) == jobsTable[i]->jobNum) {
+				if (((givenJobId) == jobsTable[i]->jobNum) && !(jobsTable[i]->isFree)) {
 					idx = i;
 					found = true;
-					printf("fg: %s %d\n", jobsTable[idx]->cmdString
-										, jobsTable[idx]->jobPid);
 					break;
 				}
 			}
@@ -621,15 +613,18 @@ int handleFg(Command* cmd, Job** jobsTable) {
 	} else {
 		// No job number was given
 		idx = maxJobNum(jobsTable) - 1;
-		printf("fg: %s %d\n", jobsTable[idx]->cmdString
-								, jobsTable[idx]->jobPid);
 	}
+
+	printf("fg: %s %d\n", jobsTable[idx]->cmdString
+						, jobsTable[idx]->jobPid);
 	
-	//send SIGCONT to the process to activate it again
-	if (kill(jobsTable[idx]->jobPid,SIGCONT) == -1 ) {
+	if (jobsTable[idx]->isStopped) {
+		//send SIGCONT to the process to activate it again
+		if (kill(jobsTable[idx]->jobPid,SIGCONT) == -1 ) {
 		fprintf(stderr, "\n");
 		perror("smash error: kill failed");
 		return COMMAND_FAILED;
+		}
 	}
 
 	//smash waits for the process to finish
