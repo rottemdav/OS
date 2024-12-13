@@ -461,7 +461,7 @@ int handleCd(Command* cmd) {
 
 		//move to the previous path
 		if (chdir(prev_path) == -1) {
-			printf("fail1");
+			//printf("fail1");
 			return COMMAND_FAILED;
 		}
 		
@@ -584,10 +584,10 @@ int handleFg(Command* cmd, Job** jobsTable) {
 	if (!cmd || !jobsTable) return MEM_ALLOC_ERR;
 
 	//fg is running a background process and this is forbidden
-	if (fgProc != getpid() ) {  
+	/*if (fgProc != getpid() ) {  
 		printf("smash error: fg: cannot run in background\n");
 		return INVALID_COMMAND;
-	}
+	}*/
 
 	if (!cmd->args[1] && maxJobNum(jobsTable) == 0 ) {
 		//perror("\nsmash error: fg: jobs list is empty");
@@ -600,44 +600,52 @@ int handleFg(Command* cmd, Job** jobsTable) {
 	//check if the given job_id exists in the table
 	if (cmd->args[1]) {
 		givenJobId = atoi(cmd->args[1]);
-		bool found = false;
+		int found = 0;
+
 		for (int i = 0; i < NUM_JOBS; i ++) {
-			if (!found) {
-				if ((givenJobId) == jobsTable[i]->jobNum) {
+			if (found == 0) {
+				if (((givenJobId) == jobsTable[i]->jobNum) && !(jobsTable[i]->isFree)) {
 					idx = i;
-					found = true;
+					found = 1;
 					break;
 				}
 			}
 		}
-		if (!found) {
+
+		if (found == 0) {
 			printf("smash error: fg: job id %d does not exist\n", givenJobId);
 			return INVALID_COMMAND;
 		}
+
 	} else {
 		givenJobId = maxJobNum(jobsTable); //check this correctness
 	}
 
 	//print to stdout the cmd and pid
 	printf("test: [%d] %s\n",jobsTable[idx]->jobNum, jobsTable[idx]->cmdString);
+	printf("process pid: %d, fgProc: %d, getpid: %d\n", jobsTable[idx]->jobPid, fgProc, getpid());
 
-	//send SIGCONT to the process to activate it again
-	if (kill(jobsTable[idx]->jobPid,SIGCONT) == -1 ) {
-		fprintf(stderr, "\n");
-		perror("smash error: kill failed");
-		return COMMAND_FAILED;
+	if (jobsTable[idx]->isStopped) {
+			//send SIGCONT to the process to activate it again
+			if (kill(jobsTable[idx]->jobPid,SIGCONT) == -1 ) {
+				fprintf(stderr, "\n");
+				perror("smash error: kill failed");
+				return COMMAND_FAILED;
+			}
+
 	}
-
-	//remove job from jobsTable
-	deleteJobs(givenJobId, jobsTable);
+ 	fgProc = jobsTable[idx]->jobPid;
 
 	//smash waits for the process to finish
 	int status;
 	if (waitpid(jobsTable[idx]->jobPid, &status, 0) == -1 ) {
-		fprintf(stderr, "\n");
-		perror("smash error: waitpid failed");
-		return COMMAND_FAILED;
+	fprintf(stderr, "\n");
+	perror("smash error: waitpid failed");
+	return COMMAND_FAILED;
 	}
+
+	//remove job from jobsTable
+	deleteJobs(givenJobId, jobsTable);
 
 	return COMMAND_SUCCESS;
 }
