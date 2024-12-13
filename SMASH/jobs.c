@@ -171,15 +171,15 @@ int deleteJobs(int jobNum, Job** jobsTable) {
  * @param jobsTable pointer to the jobs table.
  */
 void destroyTable(Job** jobsTable){
-    if (!jobsTable) return;
+    if (jobsTable == NULL) return;
 
     for (int i = 0; i < NUM_JOBS; i++){
-        if (jobsTable[i]){
+        if (jobsTable[i] != NULL){
 
             // deallocating the command string (if exists) and sets to NULL
-            if (jobsTable[i]->cmdString) {
+            if (jobsTable[i]->cmdString != NULL) {
                 free(jobsTable[i]->cmdString);
-                jobsTable[i] = NULL;
+                jobsTable[i]->cmdString = NULL;
             } 
             // deallocating the pointer to the job and sets to NULL
             free(jobsTable[i]);

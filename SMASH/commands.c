@@ -336,6 +336,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 		
 		if (isBuiltIn) { // build-in commaand
 			retVal = chooseBuiltIn(cmd, jobsTable);
+
 		} else { // external command
 			pid_t pid = fork();
 
@@ -583,36 +584,63 @@ int handleKill(Command* cmd, Job** jobsTable) {
 
 int handleFg(Command* cmd, Job** jobsTable) {
 	if (!cmd || !jobsTable) return MEM_ALLOC_ERR;
+
+/*	//fg is running a background process and this is forbidden
+	if (fgProc != getpid() ) {  
+		printf("smash error: fg: cannot run in background\n");
+		return INVALID_COMMAND;
+	}*/
+
 	if (!cmd->args[1] && maxJobNum(jobsTable) == 0 ) {
 		//perror("\nsmash error: fg: jobs list is empty");
 		printf("smash error: fg: jobs list is empty\n");
 		return INVALID_COMMAND;
 	}
-	int jobId = atoi(cmd->args[1]);
-	if (cmd->numArgs == 0) {
-		//implement find_max_job function
-		jobId = maxJobNum(jobsTable); //check this correctness
-	} 
-	//print to stdout the cmd and pid
-	printf("%s %d\n", jobsTable[jobId]->cmdString, jobsTable[jobId]->jobNum);
 
+	int givenJobId;
+	int idx;
+	//check if the given job_id exists in the table
+	if (cmd->args[1]) {
+		givenJobId = atoi(cmd->args[1]);
+		bool found = false;
+		for (int i = 0; i < NUM_JOBS; i ++) {
+			if (!found) {
+				if ((givenJobId) == jobsTable[i]->jobNum) {
+					idx = i;
+					found = true;
+					printf("fg: %s %d\n", jobsTable[idx]->cmdString
+										, jobsTable[idx]->jobPid);
+					break;
+				}
+			}
+		}
+		if (!found) {
+			printf("smash error: fg: job id %d does not exist\n", givenJobId);
+			return INVALID_COMMAND;
+		}
+	} else {
+		// No job number was given
+		idx = maxJobNum(jobsTable) - 1;
+		printf("fg: %s %d\n", jobsTable[idx]->cmdString
+								, jobsTable[idx]->jobPid);
+	}
+	
 	//send SIGCONT to the process to activate it again
-	if (kill(jobsTable[jobId]->jobPid,SIGCONT) == -1 ) {
+	if (kill(jobsTable[idx]->jobPid,SIGCONT) == -1 ) {
 		fprintf(stderr, "\n");
 		perror("smash error: kill failed");
 		return COMMAND_FAILED;
 	}
 
-	//remove job from jobsTable
-	deleteJobs(jobId, jobsTable);
-
 	//smash waits for the process to finish
 	int status;
-	if (waitpid(jobsTable[jobId]->jobPid, &status, 0) == -1 ) {
-		fprintf(stderr, "\n");
+	if (waitpid(jobsTable[idx]->jobPid, &status, 0) == -1 ) {
 		perror("smash error: waitpid failed");
 		return COMMAND_FAILED;
 	}
+
+	//remove job from jobsTable
+	deleteJobs(idx+1, jobsTable);
 
 	return COMMAND_SUCCESS;
 }
@@ -694,76 +722,79 @@ int handleQuit(Command* cmd, Job** jobsTable) {
 		return MEM_ALLOC_ERR;
 	}
 
-	// Check argument
-	if (cmd->numArgs == 0) {
-		if 
+	// Handle command according to argument
+	if (cmd->numArgs == 0) { // quit command
+		return QUIT_CMD;
+
 	} else if (cmd->numArgs == 1){
 
+		// Check if argument is valid
+		if (cmd->args[1] == NULL){
+			return MEM_ALLOC_ERR;
+		} else {
+			// Check if argument is kill
+			if (strcmp(cmd->args[1],"kill") == 0){
+				// Iterate over all of the jobs and terminate them
+				for (int i = 0; i < NUM_JOBS; i++){
+					if (jobsTable[i] == NULL){  
+						return MEM_ALLOC_ERR;
+
+					} else {
+						if (!(jobsTable[i]->isFree)){
+							if (jobsTable[i]->cmdString == NULL){
+								return MEM_ALLOC_ERR;
+
+							} else { // Printing and termination
+								// Terminating algorithm
+								// 1. Print job id and command
+								printf("[%d] %s - ",jobsTable[i]->jobNum 
+												   ,jobsTable[i]->cmdString);
+								
+								// 2. Send termination signal and print message
+								if (kill(jobsTable[i]->jobPid, SIGTERM) == -1){
+									perror("smash error: kill failed");
+									return COMMAND_FAILED;
+								}
+								printf("sending SIGTERM... ");
+
+								// 3. Wait 5 sec and print if successfull
+								sleep(5);
+
+								int status;
+								pid_t result = waitpid(jobsTable[i]->jobPid, &status,
+														0);
+								if (result == -1){
+									perror("smash error: waitpid failed");
+									return COMMAND_FAILED;
+								} 
+
+								// 4. Send kill signal if not terminated
+								if (!WIFSIGNALED(status)){
+									if (kill(jobsTable[i]->jobPid, SIGKILL) == -1){
+										perror("smash error: kill failed");
+										return COMMAND_FAILED;
+									}
+									printf("sending SIGKILL... done\n");
+								} else {
+									printf("done\n");
+								}
+
+							}
+						} else continue; // job is free
+					}
+				} // done iterating over all of the jobs and terminating them
+
+				return QUIT_CMD;
+			} else {
+				printf("smash error: quit: unexpected arguments\n");
+				return COMMAND_FAILED;
+			}
+
+		}
 	} else {
 		printf("smash error: quit: unexpected arguments\n");
 		return COMMAND_FAILED;
 	}
-	
-
-	for (int i = 0; i < NUM_JOBS; i++ ) {
-		if (!jobsTable[i]->isFree) {
-			if (cmd->numArgs == 1) {
-				// kill job with SIGKILL
-				if (kill(jobsTable[i]->jobPid, SIGKILL) == -1 ) {
-					return COMMAND_FAILED;
-					}
-			} else if (cmd->numArgs == 1) {
-
-				if (!cmd->args[1]){
-					return MEM_ALLOC_ERR;
-
-				} else if (strcmp(cmd->args[1],"kill") == 0){
-					// print job id and its command
-					printf("[%d] %s", jobsTable[i]->jobNum, jobsTable[i]->cmdString);
-
-					// send SIGTERM with message
-					if (kill(jobsTable[i]->jobPid, SIGTERM) == -1) {
-						return COMMAND_FAILED;
-						
-					} else {
-						printf("sending SIGTERM... ");
-						
-						// wait 5 secs
-						sleep(5);
-
-						// process still running after 5 secs
-						if (kill(jobsTable[i]->jobPid,0) == 0 ){ 
-						// send SIGKILL if not terminated
-							if(kill(jobsTable[i]->jobPid, SIGKILL) == -1) {
-								return COMMAND_FAILED; 
-							} else {
-									printf("sending SIGKILL... done");
-							}
-						} else { // process terminated within 5 secs
-							jobsTable[i]->isFree = true;
-							printf("done\n");
-						}
-					}
-				} else {
-					perror("smash error:quit: unexpected arguments");
-					return COMMAND_FAILED;	
-				}
-			} else {
-				perror("smash error:quit: unexpected arguments");
-				return COMMAND_FAILED;	
-			}
-		}
-	} 
-
-	// smash process waits for all of its childern to terminate.
-	int status;
-	int term_status = waitpid(-1, &status, 0);
-	if (term_status == -1 ) { //all childern process have been terminated
-		//destroyTable(jobsTable);
-		exit(0);
-		return SUCCESS;
-		}
-	return INVALID_COMMAND;
 }
 
 
@@ -773,6 +804,7 @@ int handleDiff(Command* cmd){
 	
 	if (cmd->numArgs > 2 || !(cmd->args[1]) || !(cmd->args[2])) {
 		printf("smash error: diff: expected 2 arguments\n");
+		return COMMAND_FAILED;
 	}
 	
 	// Check if path exist
@@ -781,7 +813,7 @@ int handleDiff(Command* cmd){
 	char* path2 = cmd->args[2];
 	
 	if (stat(path1, &stat1) != 0 || stat(path2, &stat2) != 0){
-		printf("nsmash error: diff: expected valid paths for files\n");
+		printf("smash error: diff: expected valid paths for files\n");
 		return COMMAND_FAILED;
 	}
 

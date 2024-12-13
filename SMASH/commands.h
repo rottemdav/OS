@@ -28,6 +28,7 @@ enum cmdStatus {
 	MEM_ALLOC_ERR = 2,
 	COMMAND_FAILED = 3,
 	NEWLINE = 4,
+	QUIT_CMD = 5,
 };
 
 /*=============================================================================

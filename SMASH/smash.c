@@ -19,7 +19,7 @@ char _line[MAX_LINE_SIZE];
 
 // foreground process initialization 
 pid_t fgProc = 0;
-
+int receivedSignal = 0;
 /*=============================================================================
 * main function
 =============================================================================*/
@@ -35,8 +35,29 @@ int main(int argc, char* argv[])
 	
 	while(1)
 	{
+		// Handle signals and reset the flag
+    if (receivedSignal) {
+        receivedSignal = 0; // Reset the flag
+        fflush(stdout);
+        continue; // Restart the loop
+    } else {
+		// Print the prompt
 		printf("smash > ");
-		fgets(_line, MAX_LINE_SIZE, stdin);
+		fflush(stdout);
+	}
+
+    // Get user input
+    if (fgets(_line, MAX_LINE_SIZE, stdin) == NULL) {
+        if (errno == EINTR) { // Check if the input was interrupted by a signal
+            //clearerr(stdin);  // Clear the error state of stdin
+            continue;         // Restart the loop
+        }
+        break; // Exit on EOF or error
+    }
+		// printf("smash > ");
+
+		// fgets(_line, MAX_LINE_SIZE, stdin);
+
 		//copies the lines written in the shell to the cmd variable
 		strcpy(_cmd, _line);
 		//buffering
@@ -78,7 +99,7 @@ int main(int argc, char* argv[])
 			// Memory allocation for single command
 			Command* newCmd = (Command*)malloc(sizeof(Command));
 			if (!newCmd) {
-				prinft("smash error: memory allocation unsuccessfull\n");
+				printf("smash error: memory allocation unsuccessfull\n");
 				break;
 			}
 
@@ -152,7 +173,7 @@ int main(int argc, char* argv[])
 	} // End of while
 	
 	// Free memory of the jobs table, reached here after quit command or memory error
-	if (jobsTable){
+	if (jobsTable != NULL){
 		destroyTable(jobsTable);
 		free(jobsTable);
 		jobsTable = NULL;
