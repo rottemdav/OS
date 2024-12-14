@@ -4,8 +4,9 @@
 #include "jobs.h"
 
 char prev_path[1024] ="";
-//char curr_path[1024] = "";
 extern pid_t fgProc;
+extern int receivedSignal;
+
 
 // --------- commands managment functions ---------- //
 
@@ -362,12 +363,16 @@ int handleCmd(Command* cmd, Job** jobsTable){
 
 				int status;
 				// Wait for the child process to terminate or stop
-				if (waitpid(pid, &status, WUNTRACED) == -1){
+				if ((waitpid(pid, &status, WUNTRACED) == -1) && errno == EINTR){
+					addJob(jobsTable, pid, cmd->cmdFull);
+					jobsTable[maxJobNum(jobsTable)-1]->isStopped = true;
+					} else {
 					perror("smash error: waitpid failed");
 				}
 				
 				// Restore shell as foreground process
 				fgProc = getpid();
+				printf("fgProc: %d, getpid(): %d\n", fgProc, getpid());
 
 				// Add process to the job table in case it was stopped
 				if (WIFSTOPPED(status)){
@@ -488,7 +493,7 @@ int handleCd(Command* cmd) {
 
 		strcpy (prev_path, curr_path);
 
-        if(chdir("..") == -1) {; // for now the function doesn't take care of a case when the parent directory is not accesible
+        if(chdir("..") == -1) { // for now the function doesn't take care of a case when the parent directory is not accesible
 			return COMMAND_FAILED;
 		}
 
@@ -626,16 +631,30 @@ int handleFg(Command* cmd, Job** jobsTable) {
 		return COMMAND_FAILED;
 		}
 	}
-
+	
+	fgProc = jobsTable[idx]->jobPid;
+	//printf("fgProc: %d\n", fgProc);
+	
 	//smash waits for the process to finish
 	int status;
-	if (waitpid(jobsTable[idx]->jobPid, &status, WUNTRACED) == -1 ) {
+	pid_t wpid = waitpid(jobsTable[idx]->jobPid, &status, WUNTRACED);
+	//printf("wpid: %d, signal:%d, WIFSTOPPED: %d\n", wpid, receivedSignal, WIFSTOPPED(status));
+	if (wpid == -1 && errno == EINTR) {
+		//addJob(jobsTable, jobsTable[idx]->jobPid, cmd->cmdFull);
+		//jobsTable[maxJobNum(jobsTable)-1]->isStopped = true;
+		fgProc = getpid();
+		//printf("fgProc: %d\n", fgProc);
+	} else {
 		perror("smash error: waitpid failed");
-		return COMMAND_FAILED;
+		return COMMAND_FAILED; 
 	}
 
-	//remove job from jobsTable
-	deleteJobs(idx+1, jobsTable);
+	if(fgProc != getpid()) {
+		//remove job from jobsTable
+		deleteJobs(givenJobId, jobsTable);
+	}
+
+	fgProc = getpid();
 
 	return COMMAND_SUCCESS;
 }
