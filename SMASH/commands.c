@@ -372,7 +372,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				
 				// Restore shell as foreground process
 				fgProc = getpid();
-				printf("fgProc: %d, getpid(): %d\n", fgProc, getpid());
+				//printf("fgProc: %d, getpid(): %d\n", fgProc, getpid());
 
 				// Add process to the job table in case it was stopped
 				if (WIFSTOPPED(status)){
@@ -752,7 +752,6 @@ int handleQuit(Command* cmd, Job** jobsTable) {
 				for (int i = 0; i < NUM_JOBS; i++){
 					if (jobsTable[i] == NULL){  
 						return MEM_ALLOC_ERR;
-
 					} else {
 						if (!(jobsTable[i]->isFree)){
 							if (jobsTable[i]->cmdString == NULL){
