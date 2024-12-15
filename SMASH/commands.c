@@ -634,7 +634,7 @@ int handleFg(Command* cmd, Job** jobsTable) {
 
 	//smash waits for the process to finish
 	int status;
-	if (waitpid(jobsTable[idx]->jobPid, &status, WUNTRACED) = -1 ) {
+	if (waitpid(jobsTable[idx]->jobPid, &status, WUNTRACED) == -1 ) {
 		perror("smash error: waitpid failed");
 		return COMMAND_FAILED;
 	}
