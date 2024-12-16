@@ -624,24 +624,39 @@ int handleFg(Command* cmd, Job** jobsTable) {
 		printf("fg: %s %d\n", jobsTable[idx]->cmdString
 								, jobsTable[idx]->jobPid);
 	}
-	
+
 	//send SIGCONT to the process to activate it again
 	if (kill(jobsTable[idx]->jobPid,SIGCONT) == -1 ) {
-		fprintf(stderr, "\n");
 		perror("smash error: kill failed");
 		return COMMAND_FAILED;
 	}
 
 	//smash waits for the process to finish
 	int status;
-	if (waitpid(jobsTable[idx]->jobPid, &status, WUNTRACED) == -1 ) {
+	pid_t newFgPid = waitpid(jobsTable[idx]->jobPid, &status, WUNTRACED);
+
+	// If fg job stopped or ternminated set parent as foreground process
+	if (newFgPid == -1 && errno == EINTR){
+		fgProc = getpid();
+	} else {
 		perror("smash error: waitpid failed");
 		return COMMAND_FAILED;
 	}
 
-	//remove job from jobsTable
-	deleteJobs(idx+1, jobsTable);
+	// If foreground process isn't the parent process delete it
+	if (fgProc != getpid()){
+		deleteJobs(idx+1, jobsTable);
+	}
+	// if (waitpid(jobsTable[idx]->jobPid, &status, WUNTRACED) == -1 ) {
+	// 	perror("smash error: waitpid failed");
+	// 	return COMMAND_FAILED;
+	// }
 
+	// //remove job from jobsTable
+	// deleteJobs(idx+1, jobsTable);
+
+	fgProc = getpid();
+	
 	return COMMAND_SUCCESS;
 }
 
