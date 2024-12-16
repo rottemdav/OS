@@ -369,7 +369,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 
 				// Check the result of waitpid
 				if (result == -1) {
-					perror("smash error:ayo waitpid failed");
+					perror("smash error: waitpid failed");
 				} else if (WIFSTOPPED(status)) {
 					// Child process was stopped by a signal
 					addJob(jobsTable, pid, cmd->cmdFull);
@@ -590,12 +590,6 @@ int handleKill(Command* cmd, Job** jobsTable) {
 int handleFg(Command* cmd, Job** jobsTable) {
 	if (!cmd || !jobsTable) return MEM_ALLOC_ERR;
 
-/*	//fg is running a background process and this is forbidden
-	if (fgProc != getpid() ) {  
-		printf("smash error: fg: cannot run in background\n");
-		return INVALID_COMMAND;
-	}*/
-
 	if (!cmd->args[1] && maxJobNum(jobsTable) == 0 ) {
 		//perror("\nsmash error: fg: jobs list is empty");
 		printf("smash error: fg: jobs list is empty\n");
@@ -630,36 +624,39 @@ int handleFg(Command* cmd, Job** jobsTable) {
 								, jobsTable[idx]->jobPid);
 	}
 
-	//send SIGCONT to the process to activate it again
-	if (kill(jobsTable[idx]->jobPid,SIGCONT) == -1 ) {
-		perror("smash error: kill failed");
-		return COMMAND_FAILED;
+	// Check if stopped in background, if so send continue signal
+	if (jobsTable[idx]->isStopped){
+		//send SIGCONT to the process to activate it again
+		if (kill(jobsTable[idx]->jobPid,SIGCONT) == -1 ) {
+			perror("smash error: kill failed");
+			return COMMAND_FAILED;
+		}
 	}
-
-	//smash waits for the process to finish
+	
+	// Set current job to run in foreground.
+	fgProc = jobsTable[idx]->jobPid;
+	
 	int status;
-	pid_t newFgPid = waitpid(jobsTable[idx]->jobPid, &status, WUNTRACED);
+	int result;
+	// Wait for the child process to terminate or stop
+	do {
+		result = waitpid(jobsTable[idx]->jobPid, &status, WUNTRACED);
+	} while (result == -1 && errno == EINTR);
 
-	// If fg job stopped or ternminated set parent as foreground process
-	if (newFgPid == -1 && errno == EINTR){
-		fgProc = getpid();
-	} else {
+	// Check the result of waitpid
+	if (result == -1) {
 		perror("smash error: waitpid failed");
 		return COMMAND_FAILED;
-	}
-
-	// If foreground process isn't the parent process delete it
-	if (fgProc != getpid()){
+	} else if (WIFSTOPPED(status)) {
+		// Child process was stopped by a signal
+		//addJob(jobsTable, jobsTable[idx]->jobPid, jobsTable[idx]->cmdString);
+		jobsTable[maxJobNum(jobsTable) - 1]->isStopped = true;
+	} else {
+		// Delete job from table because it's moved to the foreground
 		deleteJobs(idx+1, jobsTable);
 	}
-	// if (waitpid(jobsTable[idx]->jobPid, &status, WUNTRACED) == -1 ) {
-	// 	perror("smash error: waitpid failed");
-	// 	return COMMAND_FAILED;
-	// }
 
-	// //remove job from jobsTable
-	// deleteJobs(idx+1, jobsTable);
-
+	// Return shell process to foreground
 	fgProc = getpid();
 
 	return COMMAND_SUCCESS;
