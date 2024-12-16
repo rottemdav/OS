@@ -134,7 +134,6 @@ void printJob(Job** jobsTable, int idx) {
                     jobsTable[idx]->jobNum,
                     jobsTable[idx]->cmdString,
                     jobsTable[idx]->jobPid,
-                    //(long)(difftime(jobsTable[idx]->startTime, time(NULL))),
                     (long)elapsedTime,
                     ((jobsTable[idx]->isStopped) ?  "(stopped)" : "" ));
     }

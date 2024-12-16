@@ -14,7 +14,6 @@ extern int receivedSignal;
 // Signal handler for SIGINT (CTRL+C) signal interrupt
 void sigintHandler(int sig) {
     
-    //printf("fgProc: %d, getpid(): %d\n", fgProc, getpid());
     if (fgProc == getpid()){
         receivedSignal = 1; // Raise flag only if trying to interrupt smash
     }
@@ -33,8 +32,6 @@ void sigintHandler(int sig) {
 
 // Signal handler for SIGSTP (CTRL+Z) signal stop
 void sigtstpHandler(int sig){
-
-    //printf("fgProc: %d, getpid(): %d\n", fgProc, getpid());
 
     if (fgProc == getpid()){
         receivedSignal = 1; // Raise flag only if is trying to stop smash
@@ -61,7 +58,6 @@ void installSignalHandlers() {
     sigemptyset(&sa_int.sa_mask);
     sa_int.sa_flags = 0; // No special flags
 
-    //sa_int.sa_flags = SA_RESTART; // Restart interrupted system calls
     if (sigaction(SIGINT, &sa_int, NULL) == -1) {
          perror("smash error: sigaction failed\n");
          exit(EXIT_FAILURE);
@@ -73,18 +69,8 @@ void installSignalHandlers() {
     sigemptyset(&sa_stp.sa_mask);
     sa_stp.sa_flags = 0; // No special flags
 
-    //sa_stp.sa_flags = SA_RESTART; // Restart interrupted system calls
     if (sigaction(SIGTSTP, &sa_stp, NULL) == -1){
         perror("smash error: sigaction failed\n");
         exit(EXIT_FAILURE);
     }
 }
-
-// saved prints
-/*
-printf("smash: process %d was stopped\n", fgProc);
-//tcsetpgrp(STDIN_FILENO, getpgrp()); // Restore control to the shell
-//char *msg = 
-//write(STDOUT_FILENO, "try\n", 4);
-//printf("smash: process %d was killed\n", fgProc);
-*/

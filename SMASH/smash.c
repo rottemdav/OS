@@ -49,14 +49,10 @@ int main(int argc, char* argv[])
     // Get user input
     if (fgets(_line, MAX_LINE_SIZE, stdin) == NULL) {
         if (errno == EINTR) { // Check if the input was interrupted by a signal
-            //clearerr(stdin);  // Clear the error state of stdin
             continue;         // Restart the loop
         }
         break; // Exit on EOF or error
     }
-		// printf("smash > ");
-
-		// fgets(_line, MAX_LINE_SIZE, stdin);
 
 		//copies the lines written in the shell to the cmd variable
 		strcpy(_cmd, _line);
@@ -95,7 +91,7 @@ int main(int argc, char* argv[])
 			if (newCompCmdArray[i] == NULL){
 				break;
 			}
-			//printf("Command[%d]: %s, type[%d] %d\n",i+1, newCompCmdArray[i]->line, i-1,(i > 0) ? newCompCmdArray[i-1]->type : 0);
+
 			// Memory allocation for single command
 			Command* newCmd = (Command*)malloc(sizeof(Command));
 			if (!newCmd) {
@@ -145,7 +141,7 @@ int main(int argc, char* argv[])
 						if (statCmd == QUIT_CMD) isQuit = true;
 					}
 				}
-				//printf("Status of [%d]: %d\n", i+1, statCmd); // check command return values print
+
 				// free current command memory
 				if (newCmd != NULL){
 					freeCommand(newCmd);

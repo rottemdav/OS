@@ -1,4 +1,3 @@
-
 //commands.c
 #include "commands.h"
 #include "jobs.h"
@@ -358,7 +357,6 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				}
 			} else {
 				// parent process
-				//setpgid(pid, pid); // Ensures the child process is in its own process group
 				fgProc = pid;
 
 				int status;
@@ -454,7 +452,6 @@ int handleCd(Command* cmd) {
 		return INVALID_COMMAND;
 	}
 
-	//printf("cmd->args[0]: %s", cmd->args[0]);
     // previous path check - return invalid if there's no prev path
 	if (strcmp(cmd->args[1],"-") == 0) {
 
@@ -513,7 +510,6 @@ int handleCd(Command* cmd) {
 
 	if (chdir(cmd->args[1]) == -1) {
 		printf("smash error: cd: target directory does not exist\n");
-		//printf("hi \n");
 		return COMMAND_FAILED; 
 	}
 
@@ -574,7 +570,6 @@ int handleKill(Command* cmd, Job** jobsTable) {
 
 	// send signal if job exist on job table
 	if (jobsTable[jobId - 1]->isFree) {
-		//perror("\njob id %d does not exist", jobId);
 		fprintf(stderr, "smash error: job id %d does not exist\n", jobId);
 		return COMMAND_FAILED;
 	} else {
@@ -592,7 +587,6 @@ int handleFg(Command* cmd, Job** jobsTable) {
 	if (!cmd || !jobsTable) return MEM_ALLOC_ERR;
 
 	if (!cmd->args[1] && maxJobNum(jobsTable) == 0 ) {
-		//perror("\nsmash error: fg: jobs list is empty");
 		printf("smash error: fg: jobs list is empty\n");
 		return INVALID_COMMAND;
 	}
@@ -648,7 +642,6 @@ int handleFg(Command* cmd, Job** jobsTable) {
 		return COMMAND_FAILED;
 	} else if (WIFSTOPPED(status)) {
 		// Child process was stopped by a signal
-		//addJob(jobsTable, jobsTable[idx]->jobPid, jobsTable[idx]->cmdString);
 		jobsTable[maxJobNum(jobsTable) - 1]->isStopped = true;
 	} else {
 		// Delete job from table because it's moved to the foreground
