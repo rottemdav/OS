@@ -59,7 +59,7 @@ void installSignalHandlers() {
     }
 
     // Install SIGSTP handler
-    memset(&sa_int, 0, sizeof(struct sigaction)); // Zero out the structure
+    memset(&sa_stp, 0, sizeof(struct sigaction)); // Zero out the structure
     sa_stp.sa_handler = sigtstpHandler;
     sigemptyset(&sa_stp.sa_mask);
     sa_stp.sa_flags = 0; // No special flags

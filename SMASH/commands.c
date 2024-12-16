@@ -361,19 +361,24 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				fgProc = pid;
 
 				int status;
+				int result;
 				// Wait for the child process to terminate or stop
-				if (waitpid(pid, &status, WUNTRACED) == -1){
-					perror("smash error: waitpid failed");
+				do {
+					result = waitpid(pid, &status, WUNTRACED);
+				} while (result == -1 && errno == EINTR);
+
+				// Check the result of waitpid
+				if (result == -1) {
+					perror("smash error:ayo waitpid failed");
+				} else if (WIFSTOPPED(status)) {
+					// Child process was stopped by a signal
+					addJob(jobsTable, pid, cmd->cmdFull);
+					jobsTable[maxJobNum(jobsTable) - 1]->isStopped = true;
 				}
 				
 				// Restore shell as foreground process
 				fgProc = getpid();
-
-				// Add process to the job table in case it was stopped
-				if (WIFSTOPPED(status)){
-					addJob(jobsTable, pid, cmd->cmdFull);
-					jobsTable[maxJobNum(jobsTable)-1]->isStopped = true;
-				}
+			
 			}
 		}
 	} else { // --- in backrground ---
@@ -656,7 +661,7 @@ int handleFg(Command* cmd, Job** jobsTable) {
 	// deleteJobs(idx+1, jobsTable);
 
 	fgProc = getpid();
-	
+
 	return COMMAND_SUCCESS;
 }
 
