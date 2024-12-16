@@ -362,24 +362,23 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				fgProc = pid;
 
 				int status;
-				int result;
 				// Wait for the child process to terminate or stop
-				do {
-					result = waitpid(pid, &status, WUNTRACED);
-				} while (result == -1 && errno == EINTR);
-
-				// Check the result of waitpid
-				if (result == -1) {
-					perror("smash error: waitpid failed");
-				} else if (WIFSTOPPED(status)) {
-					// Child process was stopped by a signal
+				if ((waitpid(pid, &status, WUNTRACED) == -1) && errno == EINTR){
 					addJob(jobsTable, pid, cmd->cmdFull);
-					jobsTable[maxJobNum(jobsTable) - 1]->isStopped = true;
+					jobsTable[maxJobNum(jobsTable)-1]->isStopped = true;
+					} else {
+					perror("smash error: waitpid failed");
 				}
 				
 				// Restore shell as foreground process
 				fgProc = getpid();
-			
+				//printf("fgProc: %d, getpid(): %d\n", fgProc, getpid());
+
+				// Add process to the job table in case it was stopped
+				if (WIFSTOPPED(status)){
+					addJob(jobsTable, pid, cmd->cmdFull);
+					jobsTable[maxJobNum(jobsTable)-1]->isStopped = true;
+				}
 			}
 		}
 	} else { // --- in backrground ---
@@ -619,43 +618,42 @@ int handleFg(Command* cmd, Job** jobsTable) {
 	} else {
 		// No job number was given
 		idx = maxJobNum(jobsTable) - 1;
-		printf("fg: %s %d\n", jobsTable[idx]->cmdString
-								, jobsTable[idx]->jobPid);
 	}
 
-	// Check if stopped in background, if so send continue signal
-	if (jobsTable[idx]->isStopped){
+	printf("fg: %s %d\n", jobsTable[idx]->cmdString
+						, jobsTable[idx]->jobPid);
+	
+	if (jobsTable[idx]->isStopped) {
 		//send SIGCONT to the process to activate it again
 		if (kill(jobsTable[idx]->jobPid,SIGCONT) == -1 ) {
-			perror("smash error: kill failed");
-			return COMMAND_FAILED;
+		fprintf(stderr, "\n");
+		perror("smash error: kill failed");
+		return COMMAND_FAILED;
 		}
 	}
 	
-	// Set current job to run in foreground.
 	fgProc = jobsTable[idx]->jobPid;
+	//printf("fgProc: %d\n", fgProc);
 	
+	//smash waits for the process to finish
 	int status;
-	int result;
-	// Wait for the child process to terminate or stop
-	do {
-		result = waitpid(jobsTable[idx]->jobPid, &status, WUNTRACED);
-	} while (result == -1 && errno == EINTR);
-
-	// Check the result of waitpid
-	if (result == -1) {
-		perror("smash error: waitpid failed");
-		return COMMAND_FAILED;
-	} else if (WIFSTOPPED(status)) {
-		// Child process was stopped by a signal
-		//addJob(jobsTable, jobsTable[idx]->jobPid, jobsTable[idx]->cmdString);
-		jobsTable[maxJobNum(jobsTable) - 1]->isStopped = true;
+	pid_t wpid = waitpid(jobsTable[idx]->jobPid, &status, WUNTRACED);
+	//printf("wpid: %d, signal:%d, WIFSTOPPED: %d\n", wpid, receivedSignal, WIFSTOPPED(status));
+	if (wpid == -1 && errno == EINTR) {
+		//addJob(jobsTable, jobsTable[idx]->jobPid, cmd->cmdFull);
+		//jobsTable[maxJobNum(jobsTable)-1]->isStopped = true;
+		fgProc = getpid();
+		//printf("fgProc: %d\n", fgProc);
 	} else {
-		// Delete job from table because it's moved to the foreground
-		deleteJobs(idx+1, jobsTable);
+		perror("smash error: waitpid failed");
+		return COMMAND_FAILED; 
 	}
 
-	// Return shell process to foreground
+	if(fgProc != getpid()) {
+		//remove job from jobsTable
+		deleteJobs(givenJobId, jobsTable);
+	}
+
 	fgProc = getpid();
 
 	return COMMAND_SUCCESS;
