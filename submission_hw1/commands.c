@@ -349,7 +349,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 				exit(1);
 			} else if (pid == 0){
 				// child process
-				setpgrp(0,0); // Ensures that signals won't reach unless used kill
+				setpgid(0,0); // Ensures that signals won't reach unless used kill
 				
 				// If the external command wasn't executed properly, it will use
 				// exit(1), otherwise the execvp will exit
@@ -392,7 +392,7 @@ int handleCmd(Command* cmd, Job** jobsTable){
 			exit(1);
 		} else if (pid == 0){
 			// child process
-			setpgrp(); // Ensures that signals won't reach unless used kill
+			setpgid(0,0); // Ensures that signals won't reach unless used kill
 
 			int cmdStatus;
 			if (isBuiltIn){
