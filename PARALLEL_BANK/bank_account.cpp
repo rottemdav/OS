@@ -2,27 +2,36 @@
 
 // Constructor
 BankAccount::BankAccount(int id, int pwd, int balance)
-    : accId(id), accPwd(pwd), accBlc(balance) {}
+    : acc_id(id), acc_pwd(pwd), acc_blc(balance) {}
+
+// Copy Constructor
+BankAccount::BankAccount(const BankAccount& other)
+    : acc_id(other.acc_id), acc_pwd(other.acc_pwd), acc_blc(other.acc_blc) {
+
+}
+
 
 // Destructor
-BankAccount::~BankAccount() {}
+BankAccount::~BankAccount() {}*/
 
 // Set a new balance
-void BankAccount::setBalance(int newBlc){
+void BankAccount::set_balance(int new_blc){
     // lock? when is account allowed to write
-    accBlc = newBlc;
+    this->acc_blc = new_blc;
     // unlock?
 }
 
 // Get current balance
-int BankAccount::getBalance() const {
+int BankAccount::get_balance() const {
     // is he allowed to read (no one writing to him) ??
-    return accBlc;
+    // lock reader
+    return this->acc_blc;
+    // unlock reader
 }
 
 // Verify account password
-bool BankAccount::verifyPwd(int pwdGiven){
-    return (accPwd == pwdGiven);
+bool BankAccount::verify_pwd(int pwd_given){
+    return (acc_pwd == pwd_given);
 }
 
 
