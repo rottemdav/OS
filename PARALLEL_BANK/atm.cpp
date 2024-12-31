@@ -165,5 +165,12 @@ void ATM::C(int target_atm_id){
 
 // Rollback to the status {iterations} back 
 void ATM::R(int iteration){
-    
+    // if (can read)
+    // lock rollback_db reader
+   // sort current status list by account id
+   // sort requsted stauts list by account id
+   // iterate over the list and compare the two lists
+   // compare two lists, for each iteration add check if exists in current 
+   // account list, if not add it to the list if it exists, check the balance and
+   // if it's different, update the balance  
 }
