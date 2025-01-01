@@ -22,6 +22,12 @@ class ATM {
         // Destructor
         ~ATM() {};
 
+        // Read the ATM operations file and parse commands
+        void read_file();
+        
+        // Parse the command
+        void parse_command(string command);
+
         // Open bank account
         void O(int id, int pwd, int init_amount);
         

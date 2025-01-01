@@ -12,7 +12,7 @@ BankAccount::BankAccount(const BankAccount& other)
 
 
 // Destructor
-BankAccount::~BankAccount() {}*/
+BankAccount::~BankAccount() {}
 
 // Set a new balance
 void BankAccount::set_balance(int new_blc){
