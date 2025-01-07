@@ -1,6 +1,8 @@
 #include "bank.h"
 #include "atm.h"
 
+int readers;
+
 int main(int argc, char* argv[]){
     // Input:
     // ./bank <number of VIP threads> <ATM input file 1> <ATM input file 2> ...

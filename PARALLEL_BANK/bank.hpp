@@ -5,6 +5,7 @@
 #include <vector>
 #include <algorithm>
 #include "bank_account.hpp"
+#include <pthread.h>
 
 //class BankAccount;
 
@@ -22,11 +23,13 @@ public:
 }
 
 // std::vector<BankAccount> bank
-class Bank {
+class Bank{
     std::vector<BankAccount> accounts_list;
     std::vector<Status> rollback_db;
     BankAccount* fees_account;
     ATM* atm_list_pointer; // a pointer to the vector object of atms
+    pthread_mutex_t account_list_mutex; // Lock for account list
+    pthread_mutex_t atm_list_mutex; // Lock for ATM list
 
 public: 
 

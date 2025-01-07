@@ -27,6 +27,7 @@ void ATM::O(int id, int pwd, int init_amount){
 // Deposit money
 void ATM::D(int id, int pwd, in amount){
     // if (can read)
+    
         if (this->bankptr->account_exists(id) == 1){
             if (this->bankptr->get_account(id, pwd)->verify_pwd(pwd)){
                 // lock writer
