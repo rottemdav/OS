@@ -2,6 +2,7 @@
 #define BANK_ACCOUNT_H
 
 #include <iostream>
+#include <pthread.h>
 
 
 class BankAccount {
@@ -9,6 +10,7 @@ class BankAccount {
     int acc_id;  // Account ID
     int acc_pwd; // Account Password
     int acc_blc; // Account Balance
+    pthread_mutex_t acc_mutex; // Account Mutex
 
     public:
         // Constructor
@@ -30,6 +32,12 @@ class BankAccount {
 
         // Verify account password
         bool verify_pwd(int pwd_given);
+
+        // Lock bank account
+        void lock_account();
+
+        // Unlock bank account
+        void unlock_account();
 
 };
 
