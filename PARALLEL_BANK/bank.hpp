@@ -4,23 +4,26 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
-#include "bank_account.hpp"
 #include <pthread.h>
+#include <random>
 
-//class BankAccount;
+#include "read_write.hpp"
+#include "bank_account.hpp"
+
+
 
 // the class for the statuses that will be used for the rollback
 class Status {
     std::vector<BankAccount> snapshot_list;
     int idx;
-    bool is_full;
+    int counter;
 
 public:
 
     // C'tor
-    Status(int idx_val): snapshot_list(), idx(idx_val), is_full(false);
+    Status(int idx_val, int counter): snapshot_list(), idx(idx_val) counter(counter++);
 
-}
+};
 
 // std::vector<BankAccount> bank
 class Bank{
@@ -28,14 +31,23 @@ class Bank{
     std::vector<Status> rollback_db;
     BankAccount* fees_account;
     ATM* atm_list_pointer; // a pointer to the vector object of atms
-    pthread_mutex_t account_list_mutex; // Lock for account list
-    pthread_mutex_t atm_list_mutex; // Lock for ATM list
+    //conditional_variable 
+    
+    // Locks for lists
+    int account_readers;
+    int atm_readers;
+    MultiLock account_list_lock;
+    MultiLock atm_list_lock;
 
 public: 
 
     // C'tor
-    Bank(): accounts_list(), rollback_db(), fees_account(), atm_list_pointer() {}
+    Bank(): accounts_list(), rollback_db(), fees_account(), atm_list_pointer(), 
+            account_readers(0), atm_readers(0),
+            account_list_lock(account_readers), atm_list_lock(atm_readers) {}
 
+    // D'tor
+    ~Bank() {}
     // printing to the screen function
     // inside this function the bank checks if a request to close an ATM was submitted
     void screen_print() const;
@@ -55,10 +67,14 @@ public:
     // send collectors to collect the bank's fees
     int collect_fee() const;
 
+    // update the bank's fees account
+    void update_fees_account();
+
     // sends a signal to start an ATM shutdown
     int close_atm(ATM*) const;
 
-}
+
+};
 
 
 #endif // BANK_H

@@ -1,15 +1,15 @@
-#include "bank.h"
+#include "bank.hpp"
+#define ACCOUNT 0
+#define ATM 1
 
 // Constructor
 Bank::Bank() : accounts_list(), rollback_db(), fees_account(), atm_list_pointer() {
-    pthread_mutex_init(&account_list_mutex, nullptr);
-    pthread_mutex_init(&atm_list_mutex, nullptr);
+    
+    
 }
 
 // Destructor
 Bank::~Bank() {
-    pthread_mutex_destroy(&account_list_mutex);
-    pthread_mutex_destroy(&atm_list_mutex);
 }
 
 void Bank::screen_print() {
@@ -28,88 +28,148 @@ void Bank::screen_print() {
 }
 
 BankAccount* Bank::get_account(int id) const {
-    // Lock the list
-    pthread_mutex_lock(&account_list_mutex);
+    // Ensure account list locked before calling
 
     for (const BankAccount& account : this->accounts_list) {
         if (account.get_id() == id) {
-            // Unlock list 
-            pthread_mutex_unlock(&list_mutex);
             return &account;
         }
     }
-
-    // Unlock list to allow other ATM to access it
-    pthread_mutex_unlock(&account_list_mutex);
     return nullptr;
 
-    // --- previous implementation --- 
-    // BankAccount* account_it = std::find_if(this->accounts_list.begin(), this->accounts_list.end(), [id](const BankAccount& account) {
-    //     return account.acc_id == id;
-    // });
-
-    // if (account_it != this->accounts_list.end()) {
-    //     return &(*account_it); // account_it is an iterator so we're deferencing and returning its pointer
-    // } 
-
-    // return nullptr; // the account was not found - action will be inserted later
 }
 
 
 int Bank::account_exists(int id) const {
-    // Lock account list
-    pthread_mutex_lock(&list_mutex);
-    if (this->get_account(id) != nullptr) {
-        // Unlock list
-        pthread_mutex_unlock(&list_mutex);
-        return 1;
-    }
-
-    // Unlock list
-    pthread_mutex_unlock(&list_mutex);
-    return 0;
-
-    // --- previous implementation ---
-     
-    // auto account_it = std::find_if(this->accounts_list.begin(), this->accounts_list.end(), [id](const BankAccount& account) {
-    //     return account.acc_id == id;
-    // });
-
-    // //matching account was found
-    // if (account_it != this->accounts_list.end()) {
-    //     return 1; 
-    // } 
-
+    // Ensure acccount list locked before calling
+    
+    if (this->get_account(id) != nullptr) return 1;
+    
+    // else 
+    return 0; 
 }
 
 int Bank::atm_exists(int atm_id) const {
-    // Lock ATM list
-    pthread_mutex_lock(&atm_list_mutex);
+    // Ensure atm list locked before calling
 
     // Check if atm exists in list
-    for (const ATM& atm : this->atm_list_pointer)
-
-    // Unlock ATM list    
-    pthread_mutex_unlock(&atm_list_mutex);
+    for (const ATM& atm : this->atm_list_pointer) {
+        if (atm->atm_id == atm_id) return 1;
+    }
+    
     return 0;
 
-    // --- previous implementation --- 
-
-    // auto atm_it = std::find_if(this->atm_list_pointer->begin(), this->atm_list_pointer->end(), [atm_id](const ATM& atm) {
-    //     return atm.atm_id == atm_id;
-    // });
-
-    // //matching account was found
-    // if (atm_it != this->atm_list_pointer->end()) {
-    //     return 1; 
-    // } 
-
-    // return 0;
-
 }
 
+// rollback db is LIFO - smaller index means older status - the status in idx 1 is the oldest
+// get the accounts_list that the bank have
+// duplicate it into a temp vector
+// pushback to the status vector
+void Bank::save_status() {
+    // get the num of elements
+    int db_size = this->rollback_db.size();
 
-int Bank::save_status() {
-    if (this->)
+     //push the list to the status's list
+    auto curr_list = this->accounts_list;
+
+    //initiaze empty status object
+    Status new_status(0,0);
+
+    // the status list is empty
+    if (db_size == 0) {
+        new_status.snapshot_list = curr_list;
+        new_status.counter = 1;
+        this->rollback_db.push_back(new_status);
+        return;
+    }
+
+    // check if the db is full - if the vector size is 120. 
+    if (db_size >= 120) {
+        //find the status with biggest counter
+        auto it = std::min_element(this->rollback_db.begin(), this->rollback_db.end(), 
+                                    [](const Status& a, const Status& b) {
+                                        return a.counter < b.counter;
+                                    }); 
+        //replace the data in the oldest status with new data
+        if (it != this->rollback_db.end()) {
+            it->counter++;
+            it->snapshot_list = curr_list;
+        }
+        return;
+
+    } else if (db_size > 0) {
+        new_status.idx = this->rollback_db.back().idx + 1;
+        new_status.counter = this->rollback_db.back().counter + 1; 
+
+        new_status.snapshot_list = curr_list;
+        //push the new status to the db
+        this->rollback_db.push_back(new_status);
+    }
+    return;
+} // end of save_status
+
+//collect fee from the bank accounts in the bank
+// the return value of the function is the collected fee
+int collect_fee() const {
+    //generate the random fee value
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_ditribution<> range(1,5);
+    double fee_amount = range(gen);
+    fee_amount /= 100;
+
+    int cml_fee = 0;
+    //lock account list
+    pthread_mutex_lock(&account_list_mutex);
+     for (BankAccount& account : this->accounts_list) {
+            int calc_amount = static_cast<int>(account.acc_blc * fee_amount); // Calculate fee
+            account.acc_blc -= calc_amount;
+            cml_fee += calc_amount;
+    }
+    // Unlock list 
+    pthread_mutex_unlock(&account_list_mutex);
+    return cml_fee;
 }
 
+void update_fee_account() {
+    int fees_collected = collect_fee();
+    this->fees_account->acc_blc += fees_collected;
+    return;
+}
+
+// ATM will ask the bank to close ATM with a specific ID.
+// the bank need to check in each accounts list print if there's pending requests
+// ATM the receive a signal to shutdown will finish its current action and then destruct itself and become idle.
+int close_atm(int atm_id)  const {
+
+    pthread_mutex_lock(&atm_list_mutex);
+    //enter_write_atms
+    ATM* atm_to_close = this->atm_list_pointer[] //need to implement
+    // the atm id is ordered 
+    int atm_num = *(this->atm_list_pointer).size();
+    if (atm_exists == 0) {
+        // need to write to the log this error: Error <source ATM ID>: Your transaction failed – ATM ID <ATM ID> does not exist
+        return -1; 
+    }
+
+    // send for atm with atm_id to close
+    
+    atm_to_close->close_req = true;
+    /* in the atm processing:
+        if (atm.close_rep == true ) {
+            atm.is_active = false;
+            close_sig.notify_one(); -> notify the bank that it was closed
+        }
+    */
+
+    if (!atm_to_close->is_active) {
+        // log error
+        return -1;
+    }
+    atm_to_close->close_sig.wait(&atm_list_mutex, [atm_to_close]{return !is_active});
+    
+    // log success
+    return 0;
+    pthread_mutex_unlock(&atm_list_mutex);
+    //exit_write_atms
+}

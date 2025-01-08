@@ -19,14 +19,14 @@ class BankAccount {
     public:
         // Constructor
         BankAccount(int id, int pwd, int balance)
-            :acc_id(id), acc_pwd(pwd), acc_blc(balance) {};
+            :acc_id(id), acc_pwd(pwd), acc_blc(balance);
 
         // Copy Constructor
         BankAccount(const BankAccount& other)
-            :acc_id(other.acc_id), acc_pwd(other.acc_pwd), acc_blc(other.acc_blc) {};
+            :acc_id(other.acc_id), acc_pwd(other.acc_pwd), acc_blc(other.acc_blc);
         
         // Destructor
-        ~BankAccount() {};
+        ~BankAccount();
 
         // Set new balance
         void set_balance(int new_blc);
@@ -35,7 +35,7 @@ class BankAccount {
         int get_balance() const;
 
         // Get account ID
-        int get_id() const {};
+        int get_id() const;
 
         // Verify account password
         bool verify_pwd(int pwd_given);

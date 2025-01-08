@@ -1,7 +1,8 @@
-#include "bank.h"
-#include "atm.h"
+#include "bank.hpp"
+#include "atm.hpp"
+#include "log.hpp"
 
-int readers;
+
 
 int main(int argc, char* argv[]){
     // Input:

@@ -1,4 +1,4 @@
-#include "bank_account.h"
+#include "bank_account.hpp"
 
 // Constructor
 BankAccount::BankAccount(int id, int pwd, int balance)

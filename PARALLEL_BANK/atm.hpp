@@ -4,20 +4,26 @@
 #include <iostream>
 #include <string>
 
-#include"bank_account.h"
+#include "bank.hpp"
+#include "log.hpp"
+#include"bank_account.hpp"
 
 using namespace std;
 
 // ATM class
 class ATM {
-    Bank* bankptr;   // Pointer to the bank object
-    string path;     // Path to the ATM operations file
+    Bank* bankptr;    // Pointer to the bank object
+    string path;      // Path to the ATM operations file
     int atm_id;       // ATM ID
     bool is_active;   // ATM status
+    Log* ptr_to_log;  // Pointer to the log object
+    bool close_req;   // true - a signal to close was sent
+    conditional_variable close_sig; // cv to signal the bank that atm closed
+
     public:
         // Constructor
-        ATM(Bank* bank, string dir, int id)
-            : bankptr(bank),path(dir), atm_id(id) {};
+        ATM(Bank* bank, string dir, int id, Log* log)
+            : bankptr(bank),path(dir), atm_id(id), ptr_to_log(log) {};
 
         // Destructor
         ~ATM() {};
