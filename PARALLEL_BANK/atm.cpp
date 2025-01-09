@@ -48,32 +48,40 @@ void parse_command(string command) {
         splitted_cmd.push_back(str_cut); // saves the splitted parts of command in a vector
     }
     
-    if (str_cut == "O") {
+    if (splitted_cmd[0] == "O") {
         // open account - <account> <password> <initial amount>
+        O(splitted_cmd[1], splitted_cmd[2], splitted_cmd[3]);
 
-    } else if (str_cut == "D") {
+    } else if (splitted_cmd[0] == "D") {
         // deposit - <account> <password> <amount> :
+        D(splitted_cmd[1], splitted_cmd[2], splitted_cmd[3]);
         
-    } else if (str_cut == "W") {
+    } else if (splitted_cmd[0] == "W") {
         // withdraw - <account> <password> <amount> :
+        W(splitted_cmd[1], splitted_cmd[2], splitted_cmd[3]);
         
-    } else if (str_cut == "B") {
+    } else if (splitted_cmd[0] == "B") {
         // check balance - <account> <password>
+        B(splitted_cmd[1], splitted_cmd[2]);
 
-    } else if (str_cut == "Q") {
+    } else if (splitted_cmd[0] == "Q") {
         // close account - <account> <password>
+        Q(splitted_cmd[1], splitted_cmd[2]);
 
-    } else if (str_cut == "T") {
+    } else if (splitted_cmd[0] == "T") {
         // make a transaction -  <source account> <password> <target account> <amount>
+        T(splitted_cmd[1], splitted_cmd[2], splitted_cmd[3], splitted_cmd[4]);
 
-    } else if (str_cut == "C") {
+    } else if (splitted_cmd[0] == "C") {
         // close atm -  <target ATM ID>
+        C(splitted_cmd[1]);
 
-    } else if (str_cut == "R") {
+    } else if (splitted_cmd[0] == "R") {
         // rollback - <iterations>
+        C(splitted_cmd[1]);
 
     }
-    std::regex cmd("(\\S)\\s");
+    return;
 }
 
 /* the thread entry function serves as the entry point for the thread create by
