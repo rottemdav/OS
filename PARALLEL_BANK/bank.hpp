@@ -26,22 +26,22 @@ public:
 
 // std::vector<BankAccount> bank
 class Bank{
+private:
     std::vector<BankAccount> accounts_list;
     std::vector<Status> rollback_db;
     BankAccount* fees_account;
     ATM* atm_list_pointer; // a pointer to the vector object of atms
     Log* log_ptr;
     // vector of some sort to check rollback requsts 
+    
     // Locks for lists
-    int account_readers;
-    int atm_readers;
     MultiLock account_list_lock;
     MultiLock atm_list_lock;
 
 public: 
 
     // C'tor
-    Bank(); 
+    Bank(Log* log); 
 
     // D'tor
     ~Bank() {}

@@ -92,15 +92,13 @@ void ATM::O(int id, int pwd, int init_amount){
     // Lock account-list read
     bankptr->account_list_lock.enter_read();
     if (bankptr->account_exists(id) != 1){
-        
-        // Initialize an account
-        BankAccount new_account(id, pwd, init_amount);
-        bankptr->account_list_lock.exit_read()
+        bankptr->account_list_lock.exit_read();
         
         // Enter write mode in account list
         bankptr->account_list_lock.enter_write();
         
-        // Insert new account to list
+        // Initialize an account and insert to list 
+        BankAccount new_account(id, pwd, init_amount);
         bankptr->accounts_list.push_back(new_account);
 
         // Exit write mode 

@@ -11,15 +11,12 @@ class BankAccount {
     int acc_pwd; // Account Password
     int acc_blc; // Account Balance
     
-    int acc_readers; // Number of active readers
     MultiLock account_lock;
-
 
     public:
         // Constructor
         BankAccount(int id, int pwd, int balance);
            
-
         // Copy Constructor
         BankAccount(const BankAccount& other);
         

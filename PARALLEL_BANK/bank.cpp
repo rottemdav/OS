@@ -3,11 +3,8 @@
 #define ATM 1
 
 // Constructor
-Bank::Bank(Log* log) : accounts_list(), rollback_db(), fees_account(), atm_list_pointer(),
-        log_ptr(log),
-        account_readers(0), account_writers(0), atm_readers(0), atm_writers(0),
-        account_list_lock(account_readers, account_writers),
-        atm_list_lock(atm_readers, atm_writers){}
+Bank::Bank(Log* log) : accounts_list(), rollback_db(), fees_account(), 
+        atm_list_pointer(), log_ptr(log);
 
 
 // Destructor
