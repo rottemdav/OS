@@ -1,48 +1,92 @@
 #include "read_write.hpp"
 
 // ---- Multi lock functions ----
+// ---- Writer priority ----
 
 // Constructor
 MultiLock::MultiLock(int& readers) : active_readers(readers) {
-    pthread_mutex_init(&read_lock, nullptr);
-    pthread_mutex_init(&write_lock, nullptr);
+    active_readers = 0;
+    waiting_writers = 0;
+    writer_active = false;
+
+    pthread_mutex_init(&lock, nullptr);
+    pthread_cond_init(&readers_allowed, nullptr);
+    pthread_cond_init(&writer_allowed, nullptr);
 }
 
 // Destructor
 MultiLock::~MultiLock() {
-     pthread_mutex_destroy(&read_lock);
-     pthread_mutex_destroy(&write_lock);
+    pthread_mutex_destroy(&lock);
+    pthread_cond_destroy(&readers_allowed);
+    pthread_cond_destroy(&writer_allowed);
 }
 
 MultiLock::enter_read(){
-    pthread_mutex_lock(&read_lock);
+    // Aquire lock
+    pthread_mutex_lock(&lock);
+    
+    // Writers priority, wait until no one needs to write
+    while (writer_active || waiting_writers > 0)
+        pthread_cond_wait(&readers_allowed, &lock);
+    
+    // Increase active readers amount
     active_readers++;
-
-    // If first reader, wait for writer to finish
-    if (active_readers == 1)
-        pthread_mutex_lock(&write_lock); 
     
     // Allow more readers
-    pthread_mutex_unlock(&read_lock);
+    pthread_mutex_unlock(&lock);
 }
 
 MultiLock::exit_read(){
-    pthread_mutex_lock(&read_lock);
+    // Aquire lock
+    pthread_mutex_lock(&lock);
+
+    // Decrease readers amount
     active_readers--;
 
-    // If last reader, enable writing
+    // If last reader, signal to writers that writing is allowed
     if (active_readers == 0)
-        pthread_mutex_unlock(&write_lock);
-
-    pthread_mutex_unlock(&read_lock);
+        pthread_cond_signal(&writer_allowed);
+    
+    // Release the lock 
+    pthread_mutex_unlock(&lock);
 }
 
 MultiLock::enter_write(){
-    pthread_mutex_lock(&write_lock);
+    // Aquire lock
+    pthread_mutex_lock(&lock);
+
+    // Increase waiting writers
+    waiting_writers++;
+
+    // Wait for other writer to finish or readers to stop reading
+    while (writer_active || active_readers > 0)
+        pthread_cond_wait(&writer_allowed, &lock);
+
+    // Let writer enter critical section - mark active and remove from waiting
+    writer_active = true;
+    waiting_writers--;
+
+    // Release the lock
+    pthread_mutex_unlock(&lock);
 }
 
 MultiLock::exit_write(){
-    pthread_mutex_unlock(&write_lock);
+    // Aquire lock
+    pthread_mutex_unlock(&lock);
+
+    // Writer ended so not active
+    writer_active = false;
+
+    // If there are writers waiting, let them enter first, otherwise let readers
+    // -> writer priority 
+    if (waiting_writers > 0){
+        pthread_cond_signal(&writer_allowed);
+    } else {
+        pthread_cond_broadcast(&readers_allowed);
+    }
+
+    // Release the lock
+    pthread_mutex_unlock(&lock);
 }
 
 // need to implement writers-priority
