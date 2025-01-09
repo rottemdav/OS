@@ -3,14 +3,15 @@
 #define ATM 1
 
 // Constructor
-Bank::Bank() : accounts_list(), rollback_db(), fees_account(), atm_list_pointer() {
-    
-    
-}
+Bank::Bank(Log* log) : accounts_list(), rollback_db(), fees_account(), atm_list_pointer(),
+        log_ptr(log),
+        account_readers(0), account_writers(0), atm_readers(0), atm_writers(0),
+        account_list_lock(account_readers, account_writers),
+        atm_list_lock(atm_readers, atm_writers){}
+
 
 // Destructor
-Bank::~Bank() {
-}
+Bank::~Bank();
 
 void Bank::screen_print() {
 
@@ -61,10 +62,11 @@ int Bank::atm_exists(int atm_id) const {
 
 }
 
-// rollback db is LIFO - smaller index means older status - the status in idx 1 is the oldest
+// rollback db is FIFO - smaller index means older status - the status in idx 1 is the oldest
 // get the accounts_list that the bank have
 // duplicate it into a temp vector
 // pushback to the status vector
+ 
 void Bank::save_status() {
     // get the num of elements
     int db_size = this->rollback_db.size();
@@ -85,26 +87,13 @@ void Bank::save_status() {
 
     // check if the db is full - if the vector size is 120. 
     if (db_size >= 120) {
-        //find the status with biggest counter
-        auto it = std::min_element(this->rollback_db.begin(), this->rollback_db.end(), 
-                                    [](const Status& a, const Status& b) {
-                                        return a.counter < b.counter;
-                                    }); 
-        //replace the data in the oldest status with new data
-        if (it != this->rollback_db.end()) {
-            it->counter++;
-            it->snapshot_list = curr_list;
-        }
-        return;
-
-    } else if (db_size > 0) {
-        new_status.idx = this->rollback_db.back().idx + 1;
-        new_status.counter = this->rollback_db.back().counter + 1; 
-
-        new_status.snapshot_list = curr_list;
-        //push the new status to the db
-        this->rollback_db.push_back(new_status);
+        rollback_db.erase(rollback_db.begin()); // remove the oldest status
     }
+    
+    new_status.counter = this->rollback_db.back().counter + 1; 
+    new_status.snapshot_list = curr_list;
+    //push the new status to the db
+    this->rollback_db.push_back(new_status);
     return;
 } // end of save_status
 
@@ -120,6 +109,7 @@ int collect_fee() const {
 
     int cml_fee = 0;
     //lock account list
+    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< !!! change here - the bank is allowed to change the bank accounts directly !!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 
     pthread_mutex_lock(&account_list_mutex);
      for (BankAccount& account : this->accounts_list) {
             int calc_amount = static_cast<int>(account.acc_blc * fee_amount); // Calculate fee
@@ -140,36 +130,46 @@ void update_fee_account() {
 // ATM will ask the bank to close ATM with a specific ID.
 // the bank need to check in each accounts list print if there's pending requests
 // ATM the receive a signal to shutdown will finish its current action and then destruct itself and become idle.
-int close_atm(int atm_id)  const {
-
-    pthread_mutex_lock(&atm_list_mutex);
-    //enter_write_atms
-    ATM* atm_to_close = this->atm_list_pointer[] //need to implement
-    // the atm id is ordered 
-    int atm_num = *(this->atm_list_pointer).size();
-    if (atm_exists == 0) {
-        // need to write to the log this error: Error <source ATM ID>: Your transaction failed – ATM ID <ATM ID> does not exist
+int close_atm(int source_id, int target_id)  const {
+    // Aquire write lock for atm list
+    atm_list_lock.enter_write();
+    
+    ATM* atm_to_close = atm_list_pointer[target_id-1] //atm_id-1 -> each atm gets an id serially, so atm n. 2 will be located on idx 1
+    
+    // Check ATM existence 
+    if (atm_exists(target_id) == 0) {
+        atm_list_lock.exit_write();
+        std::string msg = "Error " + std::to_string(source_id) + ": Your Transaction Failed - ATM ID " + 
+                           std::to_string(target_id) + "does not exist";
+        log_ptr->write_to_log(msg);
         return -1; 
     }
 
-    // send for atm with atm_id to close
+    // caller atm - > bank - > callee atm terminates - > signals back to the bank for termination - > bank logs to the log - > back to the caller
+    // send to atm with atm_id to close
     
+    // Flagging the target atm to close 
     atm_to_close->close_req = true;
-    /* in the atm processing:
-        if (atm.close_rep == true ) {
-            atm.is_active = false;
-            close_sig.notify_one(); -> notify the bank that it was closed
-        }
-    */
+    /* the callee atm checks if there's active close request, if so - change activation status and notify the bank */
 
+    // If already closed print error 
     if (!atm_to_close->is_active) {
-        // log error
-        return -1;
+        atm_list_lock.exit_write();
+        std::string msg = "Error " + std::to_string(source_id) + ": Your close operation failed - ATM ID" + 
+                           std::to_string(target_id) + "is already in a closed state";
+        log->write_to_log(msg);
+        return -1; 
     }
+
+    // Wait for target ATM to finish operation
     atm_to_close->close_sig.wait(&atm_list_mutex, [atm_to_close]{return !is_active});
     
-    // log success
+    // Release ATM list lock
+    atm_list_lock.exit_write();
+
+    // Print success message
+    std::string msg = "Bank " + std::to_string(caller_id) + " closed " + std::to_string(callee_id) + " successfully";
+    log->write_to_log(msg);
     return 0;
-    pthread_mutex_unlock(&atm_list_mutex);
-    //exit_write_atms
 }
+ 

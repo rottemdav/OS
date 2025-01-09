@@ -1,68 +1,26 @@
 #include "bank_account.hpp"
 
 // Constructor
-BankAccount::BankAccount(int id, int pwd, int balance)
-    : acc_id(id), acc_pwd(pwd), acc_blc(balance) {
-        // Initialize mutex
-        pthread_mutex_init(&read_lock, nullptr);
-        pthread_mutex_init(&writer_lock, nullptr);
-    }
+BankAccount::BankAccount(int id, int pwd int balance):
+             acc_id(id), acc_pwd(pwd), acc_blc(balance),
+             acc_readers(0), account_lock(acc_readers);
 
 // Copy Constructor
 BankAccount::BankAccount(const BankAccount& other)
-    : acc_id(other.acc_id), acc_pwd(other.acc_pwd), acc_blc(other.acc_blc) {
-        // Initialize mutex
-        pthread_mutex_init(&read_lock, nullptr);
-        pthread_mutex_init(&writer_lock, nullptr);
-}
+    : acc_id(other.acc_id), acc_pwd(other.acc_pwd), acc_blc(other.acc_blc),
+      acc_readers(other.acc_readers), account_lock(other.account_lock);
 
 // Destructor
-BankAccount::~BankAccount() {
-    // Destroy mutex
-    pthread_mutex_destroy(&read_lock);
-    pthread_mutex_destroy(&writer_lock);
-}
+BankAccount::~BankAccount();
 
-// lock bank account
-void BankAccount::enter_read(){
-    pthread_mutex_lock(&read_lock);
-    active_readers++;
-    if (active_readers == 1) // If first writer
-        pthread_mutex_lock(&writer_lock); // Wait for writer to finish
-    
-    // unlock read lock to allow other readers
-    pthread_mutex_unlock(&read_lock);
-}
-
-void BankAccount::exit_read(){
-    pthread_mutex_lock(&read_lock);
-    active_readers--;
-    if (active_readers == 0) // If last reader
-        pthread_mutex_unlock(&writer_lock); // Allow writer to write
-    pthread_mutex_unlock(&read_lock); // Unlock read lock
-}
-
-void BankAccount::enter_write(){
-    pthread_mutex_unlock(&writer_lock);
-}
-
-void BankAccount::exit_write(){
-    pthread_mutex_unlock(&writer_lock);
-}
-
-// Set a new balance
+// Set a new balance - account expected to be locked to write upon enter
 void BankAccount::set_balance(int new_blc){
-    enter_write();
     acc_blc = new_blc;
-    exit_write();
 }
 
-// Get current balance
+// Get current balance - account expected to be locked to read upon enter
 int BankAccount::get_balance() const {
-    enter_read();
-    int balance = acc_blc;
-    exit_read();
-    return acc_blc;
+    return balance;
 }
 
 // Get account ID

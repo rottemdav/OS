@@ -3,7 +3,7 @@
 
 #include <iostream>
 #include <pthread.h>
-
+#include "read_write.hpp"
 
 class BankAccount {
     private:
@@ -11,19 +11,17 @@ class BankAccount {
     int acc_pwd; // Account Password
     int acc_blc; // Account Balance
     
-    int active_readers; // Number of active readers
-    pthread_mutex_t read_lock; // Account read lock
-    pthread_mutex_t writer_lock; // Account write lock
+    int acc_readers; // Number of active readers
+    MultiLock account_lock;
 
 
     public:
         // Constructor
-        BankAccount(int id, int pwd, int balance)
-            :acc_id(id), acc_pwd(pwd), acc_blc(balance);
+        BankAccount(int id, int pwd, int balance);
+           
 
         // Copy Constructor
-        BankAccount(const BankAccount& other)
-            :acc_id(other.acc_id), acc_pwd(other.acc_pwd), acc_blc(other.acc_blc);
+        BankAccount(const BankAccount& other);
         
         // Destructor
         ~BankAccount();
@@ -39,20 +37,6 @@ class BankAccount {
 
         // Verify account password
         bool verify_pwd(int pwd_given);
-
-        // Enter read mode
-        void enter_read();
-
-        // Exit read mode
-        void exit_read();
-
-        // Enter write mode
-        void enter_write();
-
-        // Exit write mode
-        void exit_write();
-
-
 
 };
 

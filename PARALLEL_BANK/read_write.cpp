@@ -44,3 +44,5 @@ MultiLock::enter_write(){
 MultiLock::exit_write(){
     pthread_mutex_unlock(&write_lock);
 }
+
+// need to implement writers-priority

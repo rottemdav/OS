@@ -16,14 +16,14 @@ class ATM {
     string path;      // Path to the ATM operations file
     int atm_id;       // ATM ID
     bool is_active;   // ATM status
-    Log* ptr_to_log;  // Pointer to the log object
+    Log* log_ptr;  // Pointer to the log object
     bool close_req;   // true - a signal to close was sent
-    conditional_variable close_sig; // cv to signal the bank that atm closed
+    pthread_cond_t close_sig; // cv to signal the bank that atm closed
 
     public:
         // Constructor
         ATM(Bank* bank, string dir, int id, Log* log)
-            : bankptr(bank),path(dir), atm_id(id), ptr_to_log(log) {};
+            : bankptr(bank),path(dir), atm_id(id), log_ptr(log) {};
 
         // Destructor
         ~ATM() {};
@@ -33,6 +33,9 @@ class ATM {
         
         // Parse the command
         void parse_command(string command);
+
+        // create the thread that will be tied to the atm
+        static void* thread_entry(void* obj);
 
         // Open bank account
         void O(int id, int pwd, int init_amount);

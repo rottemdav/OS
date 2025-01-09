@@ -45,3 +45,21 @@ void write_to_log(const std::string& message) {
     // Unlock log
     pthread_mutex_unlock(&log_lock);
 }
+
+void print_inc_pass(const int atm_id, const int acc_id){
+    // Format message
+    std::string failure = std::format("Error {}: Your transaction failed -
+        password for account id {} is incorrect", atm_id, id);   
+    
+    // Write to log
+    log->write_to_log(failure); 
+}
+
+void print_no_acc(const int atm_id, const int acc_id){
+    // Format message
+    std::string not_exist = std::format("Error {}: Your transaction failed -
+                    account id {} does not exist", atm_id, id);
+    
+    // Write to log
+    log->write_to_log(not_exist);
+}

@@ -6,13 +6,14 @@
 // Multiple readers - single writer lock
 class MultiLock {
     int& active_readers; // Reference to readers integer
+    ..int& waiting_writers; // Reference to writers integer
     pthread_mutex_t read_lock;
     pthread_mutex_t write_lock;
 
     public:
     
     // Constructor
-    MultiLock(int& readers) : active_readers(readers) {}
+    MultiLock(int& readers){}
 
     // Destructor
     ~MultiLock(){} 

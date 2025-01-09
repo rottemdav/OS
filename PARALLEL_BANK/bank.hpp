@@ -15,7 +15,6 @@
 // the class for the statuses that will be used for the rollback
 class Status {
     std::vector<BankAccount> snapshot_list;
-    int idx;
     int counter;
 
 public:
@@ -31,8 +30,8 @@ class Bank{
     std::vector<Status> rollback_db;
     BankAccount* fees_account;
     ATM* atm_list_pointer; // a pointer to the vector object of atms
-    //conditional_variable 
-    
+    Log* log_ptr;
+    // vector of some sort to check rollback requsts 
     // Locks for lists
     int account_readers;
     int atm_readers;
@@ -42,9 +41,7 @@ class Bank{
 public: 
 
     // C'tor
-    Bank(): accounts_list(), rollback_db(), fees_account(), atm_list_pointer(), 
-            account_readers(0), atm_readers(0),
-            account_list_lock(account_readers), atm_list_lock(atm_readers) {}
+    Bank(); 
 
     // D'tor
     ~Bank() {}
