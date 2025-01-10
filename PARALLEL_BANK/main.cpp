@@ -8,10 +8,11 @@ int main(int argc, char* argv[]){
     // Input:
     // ./bank <number of VIP threads> <ATM input file 1> <ATM input file 2> ...
 
-    // Create a bank object
-    Bank bank;
-
     // Create log file
+    Log log("log.txt");
+
+    // Create a bank object
+    Bank bank(&log);
 
     int vip_accounts = atoi(argc[1]);
 

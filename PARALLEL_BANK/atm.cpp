@@ -390,15 +390,26 @@ void ATM::C(int target_atm_id){
 
 // Rollback to the status {iterations} back 
 void ATM::R(int iteration){
+    
+    // Calculate the requsted iteration
+    int rollback_index = rollback_db.size() - 1 - iteration;
+
+    // If there is no such iteration do nothing
+    if (rollback_index < 0 || rollback_index >= bankptr->rollback_db.size()) return;
+    
+   
     // Aquire account list write lock
     bankptr->account_list_lock.enter_write();
-    
-    
-    // Preform the rollback
-    int rollback_index = rollback_db.size() - 1 - iteration;
+   
+    // Aquire the required status
     Status& rollback_status = bankptr->rollback_db[rollback_index];
     
+    // Replace the current account list with the snapshot
+    bankptr->account_list = rollback_status.snapshot_list;
+
     
+    // Format the message
+    std::string message = std::format("{}: Rollback to ")
     bankptr->account_list_lock.exit_write();
 
 }
