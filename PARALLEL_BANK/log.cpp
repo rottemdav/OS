@@ -1,6 +1,7 @@
 #include "log.hpp"
 
-Log::Log(const std::string& file_name) : log_file(file_name) {
+// Constructor
+Log::Log(const std::string& file_name) {
     // Initialize mutex
     pthread_mutex_init(&log_lock, nullptr);
 
@@ -16,6 +17,7 @@ Log::Log(const std::string& file_name) : log_file(file_name) {
     log_file.close(); 
 }
 
+// Destructor
 Log::~Log() {
     // Destroy mutex
     pthread_mutex_destroy(&log_lock);
@@ -24,6 +26,7 @@ Log::~Log() {
     log_file.close();
 }
 
+// Write to log
 void Log::write_to_log(const std::string& message) {
     // Lock log
     pthread_mutex_lock(&log_lock);
@@ -46,18 +49,20 @@ void Log::write_to_log(const std::string& message) {
     pthread_mutex_unlock(&log_lock);
 }
 
-void Log::print_inc_pass(const int atm_id, const int acc_id){
+// Print incorrect password message to log
+void Log::print_inc_pass(const int atm_id, const int acc_id) {
     // Format message
-    std::string failure = "Error " + std::to_string(atm_id) + " Your transaction failed -password for account id " + 
-                            std::to_string(acc_id) + "  is incorrect";
+    std::string failure = "Error " + std::to_string(atm_id) + 
+                          " Your transaction failed - password for account id " + 
+                          std::to_string(acc_id) + " is incorrect";
     write_to_log(failure);
 }
 
-void Log::print_no_acc(const int atm_id, const int acc_id){
+// Print account does not exist message to log
+void Log::print_no_acc(const int atm_id, const int acc_id) {
     // Format message
-    std::string not_exist = "Error " + std::to_string(atm_id) + "Your transaction failed - account id " + 
+    std::string not_exist = "Error " + std::to_string(atm_id) + 
+                            " Your transaction failed - account id " + 
                             std::to_string(acc_id) + " does not exist";
-    
-    // Write to log
     write_to_log(not_exist);
 }

@@ -166,15 +166,15 @@ int Bank::close_atm(int source_id, int target_id, bool is_per) {
     atm_list_lock.exit_write();
 
     // Wait for the ATM to finish its operation
-    pthread_mutex_t atm_list_mutex = atm_list_lock.get_lock();
+    pthread_mutex_t* atm_list_mutex = atm_list_lock.get_lock();
     pthread_cond_t* close_sig = atm_to_close->get_close_sig();
 
-    pthread_mutex_lock(&atm_list_mutex);
+    pthread_mutex_lock(atm_list_mutex);
     // Wait for target ATM to finish operation
     while (atm_to_close->get_is_active()) {  // Use the getter method
-        pthread_cond_wait(close_sig, &atm_list_mutex); //mutex pointer
+        pthread_cond_wait(close_sig, atm_list_mutex); //mutex pointer
     }
-    pthread_mutex_unlock(&atm_list_mutex);
+    pthread_mutex_unlock(atm_list_mutex);
     
     atm_list_lock.enter_write();
 

@@ -7,7 +7,7 @@ TARGET = bank
 all: $(TARGET)
 
 $(TARGET): $(OBJECTS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJECTS)
 
 main.o: main.cpp bank.hpp atm.hpp log.hpp	
 	$(CXX) $(CXXFLAGS) -c main.cpp -o main.o 
