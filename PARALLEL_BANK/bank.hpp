@@ -63,7 +63,7 @@ public:
     void screen_print() const;
 
     // get the wanted bank account
-    const BankAccount* get_account(int id) const;
+    BankAccount* get_account(int id) const;
 
     // checks if the account exists in the list --> 1 true : 0 false;
     int account_exists(int id) const;
@@ -83,7 +83,7 @@ public:
     // sends a signal to start an ATM shutdown
     int close_atm(int source_id, int target_id, bool is_per) ;
 
-    std::vector<BankAccount>* get_account_list();
+    std::vector<BankAccount>* get_account_list() const;
 
     MultiLock* get_account_list_lock();
 

@@ -6,11 +6,11 @@
 
 // Constructor
 Bank::Bank(Log* log, std::vector<ATM>* atm) : accounts_list(), rollback_db(), fees_account(), 
-        atm_list_pointer(atm), log_ptr(log) {} ;
+        atm_list_pointer(atm), log_ptr(log) {} 
 
 
 // Destructor
-Bank::~Bank() {};
+Bank::~Bank() {}
 
 void Bank::screen_print() const {
 
@@ -27,17 +27,16 @@ void Bank::screen_print() const {
     }
 }
 
-const BankAccount* Bank::get_account(int id) const {
+BankAccount* Bank::get_account(int id) const {
     // Ensure account list locked before calling
-
-    for (const BankAccount& account : this->accounts_list) {
+    for (BankAccount& account : *get_account_list()) {
         if (account.get_id() == id) {
-            return &account;
+            return &account; // Return the address of the matching account
         }
     }
-    return nullptr;
-
+    return nullptr; // Return nullptr if no matching account is found
 }
+
 
 
 int Bank::account_exists(int id) const {
@@ -208,8 +207,8 @@ MultiLock* Bank::get_account_list_lock(){
     return &account_list_lock;
 }
 
-std::vector<BankAccount>* Bank::get_account_list(){
-    return &accounts_list;
+std::vector<BankAccount>* Bank::get_account_list() const {
+    return const_cast<std::vector<BankAccount>*>(&accounts_list);
 }
 
 std::vector<Status> Bank::get_status_vector(){

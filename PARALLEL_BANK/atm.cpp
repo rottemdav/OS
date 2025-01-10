@@ -242,7 +242,7 @@ int ATM::O(int id, int pwd, int init_amount, bool is_per){
 }
 
 // Deposit money - write to account, read from account list
-int ATM::D(int id, int pwd, in amount, bool is_per){
+int ATM::D(int id, int pwd, int amount, bool is_per){
     // Aquire list lock
     bankptr->get_account_list_lock()->enter_read();
 
@@ -375,7 +375,7 @@ int ATM::B(int id, int pwd, bool is_per){
         if (acc_to_check->verify_pwd(pwd)){
                      
             // Aquire account lock
-            acc_to_check->get_acc_lock().enter_read();
+            acc_to_check->get_acc_lock()->enter_read();
             
             // Release list lock
             bankptr->get_account_list_lock()->exit_read();
@@ -391,7 +391,7 @@ int ATM::B(int id, int pwd, bool is_per){
             log_ptr->write_to_log(success);
             acc_to_check->get_acc_lock()->exit_read();
 
-            retrun SUCCESS;
+            return SUCCESS;
         } else {
             // Release list lock and print error
             bankptr->get_account_list_lock()->exit_read();
@@ -404,7 +404,7 @@ int ATM::B(int id, int pwd, bool is_per){
         // Release list lock and print error
         bankptr->get_account_list_lock()->exit_read();
         if (is_per == false)
-            log_ptrg->print_no_acc(atm_id, id);
+            log_ptr->print_no_acc(atm_id, id);
         
         return FAILURE;
     }
@@ -429,7 +429,7 @@ int ATM::Q(int id, int pwd, bool is_per){
             bankptr->get_account_list_lock()->enter_write();
 
             // Remove the account from the list
-            bankptr->get_account_list()->earse(
+            bankptr->get_account_list()->erase(
                 std::remove(bankptr->get_account_list()->begin(),
                             bankptr->get_account_list()->end(),
                             *acc_to_close),
@@ -476,15 +476,15 @@ int ATM::T(int source_id, int pwd, int target_id, int amount, bool is_per){
     // Verify acccounts existence 
     if (bankptr->account_exists(source_id) == 1 
         && bankptr->account_exists(target_id) == 1){
-            Bankaccount* source_acc = bankptr->get_account(source_id);
-            Bankaccount* target_acc = bankptr->get_account(target_id);
+            BankAccount* source_acc = bankptr->get_account(source_id);
+            BankAccount* target_acc = bankptr->get_account(target_id);
         
         // Verify account's password
         if (source_acc->verify_pwd(pwd)){
            
             // Aquire write locks for both accounts
-            source_acc->enter_write();
-            target_acc->enter_write();
+            source_acc->get_acc_lock()->enter_write();
+            target_acc->get_acc_lock()->enter_write();
 
             // Release list lock
             bankptr->get_account_list_lock()->exit_read();
@@ -505,8 +505,8 @@ int ATM::T(int source_id, int pwd, int target_id, int amount, bool is_per){
                 target_acc->set_balance(tg_n_blc);
                 
                 // Release accounts write lock
-                source_acc->exit_write();
-                target_acc->exit_write();
+                source_acc->get_acc_lock()->exit_write();
+                target_acc->get_acc_lock()->exit_write();
                 
                 // Format message 
                 std::string success = std::to_string(atm_id) + ": Transfer " +
@@ -518,13 +518,13 @@ int ATM::T(int source_id, int pwd, int target_id, int amount, bool is_per){
                                       std::to_string(tg_n_blc);
                 
                 // Write to log
-                log->write_to_log(success);
+                log_ptr->write_to_log(success);
 
                 return SUCCESS;
             } else {
                 // Release accounts write lock
-                source_acc->exit_write();
-                target_acc->exit_write();
+                source_acc->get_acc_lock()->exit_write();
+                target_acc->get_acc_lock()->exit_write();
 
                 // Format message
                 std::string failure = "Error " + std::to_string(atm_id) +
@@ -563,10 +563,10 @@ int ATM::C(int target_atm_id, bool is_per){
 }
 
 // Rollback to the status {iterations} back 
-int ATM::R(int iteration){
+int ATM::R(int iteration, bool is_per){
     
     // Calculate the requsted iteration
-    int rollback_index = rollback_db.size() - 1 - iteration;
+    size_t   rollback_index = bankptr->get_status_vector().size() - 1 - iteration;
 
     // If there is no such iteration do nothing
     if (rollback_index < 0 || rollback_index >= bankptr->get_status_vector().size())
@@ -580,7 +580,7 @@ int ATM::R(int iteration){
     Status& rollback_status = bankptr->get_status_vector()[rollback_index];
     
     // Replace the current account list with the snapshot
-    bankptr->get_account_list() = rollback_status.get_snapshot_list();
+    *(bankptr->get_account_list()) = rollback_status.get_snapshot_list();
 
     // Trim the status vector to most recent status, from the back
     while (bankptr->get_status_vector().size() > rollback_index + 1)

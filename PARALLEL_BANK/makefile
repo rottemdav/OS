@@ -1,12 +1,12 @@
 CXX = g++
 CXXFLAGS = -std=c++11 -Wall -Werror -pedantic-errors -DNDEBUG -pthread
 
-OBJS = main.o bank.o atm.o bank_account.o log.o read_write.o 
+OBJECTS = main.o bank.o atm.o bank_account.o log.o read_write.o 
 TARGET = bank
 
 all: $(TARGET)
 
-$(TARGET): $(OBJS)
+$(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
 
 main.o: main.cpp bank.hpp atm.hpp log.hpp	
@@ -29,5 +29,3 @@ read_write.o: read_write.cpp read_write.hpp
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)
-
-.PHONY: all clean

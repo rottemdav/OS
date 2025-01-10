@@ -6,39 +6,41 @@
 #include "read_write.hpp"
 
 class BankAccount {
-    private:
+private:
     int acc_id;  // Account ID
     int acc_pwd; // Account Password
     int acc_blc; // Account Balance
     
     MultiLock account_lock;
 
-    public:
-        // Constructor
-        BankAccount(int id, int pwd, int balance);
-           
-        // Copy Constructor
-        BankAccount(const BankAccount& other);
-        
-        // Destructor
-        ~BankAccount();
+public:
+    // Constructor
+    BankAccount(int id, int pwd, int balance);
+       
+    // Copy Constructor
+    BankAccount(const BankAccount& other);
+    
+    // Destructor
+    ~BankAccount() = default;
 
-        // Set new balance
-        void set_balance(int new_blc);
+    // Compare operator
+    bool operator==(const BankAccount& other) const;
 
-        // Get current balance
-        int get_balance() const;
+    // Set new balance
+    void set_balance(int new_blc);
 
-        // Get account ID
-        int get_id() const;
+    // Get current balance
+    int get_balance() const;
 
-        int get_pwd() const;
+    // Get account ID
+    int get_id() const;
 
-        // Verify account password
-        bool verify_pwd(int pwd_given);
+    int get_pwd() const;
 
-        MultiLock* get_acc_lock();
+    // Verify account password
+    bool verify_pwd(int pwd_given);
 
+    MultiLock* get_acc_lock();
 };
 
 #endif // BANK_ACCOUNT_H
