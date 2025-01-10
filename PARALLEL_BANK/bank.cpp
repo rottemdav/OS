@@ -96,7 +96,7 @@ void Bank::save_status() {
 
 //collect fee from the bank accounts in the bank
 // the return value of the function is the collected fee
-int collect_fee() const {
+int Bank::collect_fee() const {
     //generate the random fee value
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -118,16 +118,16 @@ int collect_fee() const {
     return cml_fee;
 }
 
-void update_fee_account() {
+void Bank::update_fee_account() {
     int fees_collected = collect_fee();
-    this->fees_account->acc_blc += fees_collected;
+    fees_account->acc_blc += fees_collected;
     return;
 }
 
 // ATM will ask the bank to close ATM with a specific ID.
 // the bank need to check in each accounts list print if there's pending requests
 // ATM the receive a signal to shutdown will finish its current action and then destruct itself and become idle.
-int close_atm(int source_id, int target_id)  const {
+int Bank::close_atm(int source_id, int target_id)  const {
     // Aquire write lock for atm list
     atm_list_lock.enter_write();
     
@@ -165,7 +165,7 @@ int close_atm(int source_id, int target_id)  const {
     atm_list_lock.exit_write();
 
     // Print success message
-    std::string msg = "Bank " + std::to_string(caller_id) + " closed " + std::to_string(callee_id) + " successfully";
+    std::string msg = "Bank " + std::to_string(source_id) + " closed " + std::to_string(target_id) + " successfully";
     log->write_to_log(msg);
     return 0;
 }

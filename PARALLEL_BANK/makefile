@@ -1,25 +1,28 @@
 CXX = g++
-CXXFLAGS = -g -Wall
+CXXFLAGS = -g -Wall -std=c++11
 
-OBJECTS = main.o bank.o atm.o log.o
+OBJS = main.o bank.o atm.o log.o
 TARGET = bank
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-   $(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS)
 
-bank.o: bank.hpp atm.hpp bank_account.hpp
-  $(CXX) $(CXXFLAGS) -o bank.cpp 
+main.o: main.cpp bank.hpp atm.hpp log.hpp	
+	$(CXX) $(CXXFLAGS) -c main.cpp -o main.o 
 
-atm.o: atm.hpp bank.hpp log.hpp bank_account.hpp
-  $(CXX) $(CXXFLAGS) -o atm.cpp 
+bank.o: bank.cpp bank.hpp atm.hpp bank_account.hpp
+	$(CXX) $(CXXFLAGS) -c bank.cpp -o bank.o
 
-bank_account.o: read_write.hpp
-  $(CXX) $(CXXFLAGS) -o bank_account.cpp 
+atm.o: atm. cpp atm.hpp bank.hpp log.hpp bank_account.hpp
+	$(CXX) $(CXXFLAGS) -c atm.cpp -o atm.o
 
-log.o: log.hpp
-  $(CXX) $(CXXFLAGS) -o log.cpp 
+bank_account.o: bank_account.cpp read_write.hpp
+	$(CXX) $(CXXFLAGS) -c bank_account.cpp -o bank_account.o
+
+log.o: log.cpp log.hpp
+	$(CXX) $(CXXFLAGS) -c log.cpp -o log.o
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)

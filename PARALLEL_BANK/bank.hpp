@@ -14,12 +14,13 @@
 // the class for the statuses that will be used for the rollback
 class Status {
     std::vector<BankAccount> snapshot_list;
+    int idx;
     int counter;
 
 public:
 
     // C'tor
-    Status(int idx_val, int counter): snapshot_list(), idx(idx_val) counter(counter++);
+    Status(int idx_val, int counter): snapshot_list(), idx(idx_val), counter(counter+1) {};
 
 };
 
