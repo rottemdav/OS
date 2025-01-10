@@ -7,9 +7,8 @@
 #include <pthread.h>
 #include <random>
 
-#include "read_write.hpp"
 #include "bank_account.hpp"
-
+#include "atm.hpp" 
 
 
 // the class for the statuses that will be used for the rollback

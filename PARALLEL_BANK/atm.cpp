@@ -1,6 +1,4 @@
 #include "atm.hpp"  // ATM class
-#include "bank.hpp" // Bank class
-#include "log.hpp"  // Log class
 #include <iostream>
 #include <string>
 #include <format>
