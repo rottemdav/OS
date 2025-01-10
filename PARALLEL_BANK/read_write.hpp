@@ -29,6 +29,8 @@ class MultiLock {
     
     void exit_write();
 
+    pthread_mutex_t get_lock();
+
 };
  
 

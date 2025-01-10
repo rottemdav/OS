@@ -3,12 +3,21 @@
 
 #include <iostream>
 #include <string>
+#include <pthread.h>
 
 #include "bank.hpp"
 #include "log.hpp"
-#include"bank_account.hpp"
+#include "bank_account.hpp"
 
 using namespace std;
+
+class Bank;
+class Log;
+
+enum Operation_status{
+    FAILURE = 0,
+    SUCCESS = 1
+};
 
 // ATM class
 class ATM {
@@ -22,11 +31,17 @@ class ATM {
 
     public:
         // Constructor
-        ATM(Bank* bank, string dir, int id, Log* log)
-            : bankptr(bank),path(dir), atm_id(id), log_ptr(log) {};
+        ATM(Bank* bank, string dir, int id, bool is_active, Log* log, bool close_req)
+            : bankptr(bank),path(dir), atm_id(id), is_active(is_active), log_ptr(log), close_req(close_req)
+        { 
+            pthread_cond_init(&close_sig, nullptr);
+        }
 
         // Destructor
-        ~ATM() {};
+        ~ATM() { 
+            pthread_cond_destroy(&close_sig); 
+        }
+
 
         // Read the ATM operations file and parse commands
         void read_file();
@@ -38,28 +53,38 @@ class ATM {
         static void* thread_entry(void* obj);
 
         // Open bank account
-        void O(int id, int pwd, int init_amount);
+        int O(int id, int pwd, int init_amount, bool is_per);
         
         // Deposit money into account
-        void D(int id, int pwd, int amount);
+        int D(int id, int pwd, int amount, bool is_per);
         
         // Withdraw money from account
-        void W(int id, int pwd, int amount);
+        int W(int id, int pwd, int amount, bool is_per);
         
         // Get account balance
-        void B(int id, int pwd);
+        int B(int id, int pwd, bool is_per);
         
         // Close bank account
-        void Q(int id, int pwd);
+        int Q(int id, int pwd, bool is_per);
         
         // Transfer money between bank accounts
-        void T(int source_id, int pwd, int target_id, int amount);
+        int T(int source_id, int pwd, int target_id, int amount, bool is_per);
 
         // Close ATM
-        void C(int target_atm_id);
+        int C(int target_atm_id, bool is_per);
 
         // Rollback to the status {iterations} back
-        void R(int iteration);
+        int R(int iteration, bool is_per);
+
+        //getter
+        int get_id() const { return atm_id; }
+        bool get_close_req() const {return close_req;}
+        bool get_is_active() const {return is_active;}
+        pthread_cond_t* get_close_sig() {return &close_sig;}
+
+        //setter
+        void set_close_req(bool value) { close_req = value;}
+        void set_is_active(bool value) { is_active = value;}
 };
 
 #endif // ATM_H

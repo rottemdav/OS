@@ -32,8 +32,12 @@ class BankAccount {
         // Get account ID
         int get_id() const;
 
+        int get_pwd() const;
+
         // Verify account password
         bool verify_pwd(int pwd_given);
+
+        MultiLock* get_acc_lock();
 
 };
 

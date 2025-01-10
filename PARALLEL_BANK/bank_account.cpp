@@ -27,9 +27,19 @@ int BankAccount::get_id() const {
     return acc_id;
 }
 
+//get account password
+bool BankAccount::get_pwd() const {
+    return acc_pwd;
+}
+
+
 // Verify account password
 bool BankAccount::verify_pwd(int pwd_given){
     return (acc_pwd == pwd_given);
+}
+
+MultiLock* get_acc_lock(){
+    return &account_lock;
 }
 
 
