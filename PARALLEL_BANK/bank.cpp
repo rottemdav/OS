@@ -118,7 +118,7 @@ int Bank::save_status() {
 
 //collect fee from the bank accounts in the bank
 // the return value of the function is the collected fee
-int Bank::collect_fee() const {
+int Bank::collect_fee() {
     //generate the random fee value
     std::random_device rd;
     std::mt19937 gen(rd());
@@ -126,18 +126,19 @@ int Bank::collect_fee() const {
     double fee_amount = range(gen);
     fee_amount /= 100;
 
-//    int cml_fee = 0;
+    //int cml_fee = 0;
     //lock account list
     // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< !!! change here - the bank is allowed to change the bank accounts directly !!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 
-  /*pthread_mutex_lock(&account_list_mutex);
-     for (BankAccount& account : this->accounts_list) {
+    
+    get_account_list_lock()->enter_write();
+     for (BankAccount account : accounts_list) {
             int calc_amount = static_cast<int>(account.get_balance() * fee_amount); // Calculate fee
-            account. -= calc_amount;
-            cml_fee += calc_amount;
+            int balance = account.get_balance();
+            balance -= calc_amount;
+            account.set_balance(balance);
     }
     // Unlock list 
-    pthread_mutex_unlock(&account_list_mutex);
-    return cml_fee;*/
+    get_account_list_lock()->exit_write();
     return 1;
 }
 

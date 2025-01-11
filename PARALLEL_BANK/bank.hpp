@@ -77,7 +77,7 @@ public:
     int save_status();
 
     // send collectors to collect the bank's fees
-    int collect_fee() const;
+    int collect_fee();
 
     // update the bank's fees account
    // void update_fees_account();
