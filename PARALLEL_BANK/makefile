@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++11 -Wall -Werror -pedantic-errors -DNDEBUG -pthread
+CXXFLAGS = -g -std=c++11 -Wall -Werror -pedantic-errors -DNDEBUG -pthread
 
 OBJECTS = main.o bank.o atm.o bank_account.o log.o read_write.o 
 TARGET = bank

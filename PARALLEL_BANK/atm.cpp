@@ -55,11 +55,13 @@ void ATM::parse_command(string command) {
         splitted_cmd.push_back(str_cut); // saves the splitted parts of command in a vector
     }
     bool is_persistant;
-    
+    size_t arg_num = splitted_cmd.size();
     // If command has persistent it will run twice in case failed
     if (splitted_cmd[0] == "O") {
         // open account - <account> <password> <initial amount> <persistent>
+        if ( arg_num == 5) {
         if (splitted_cmd[4] == "PERSISTENT") is_persistant = true;
+        }
         
         int acc_id = stoi(splitted_cmd[1]);
         int acc_pwd = stoi(splitted_cmd[2]);
@@ -76,8 +78,9 @@ void ATM::parse_command(string command) {
         
     } else if (splitted_cmd[0] == "D") {
         // deposit - <account> <password> <amount> <persistent>
+        if ( arg_num == 5) {
         if (splitted_cmd[4] == "PERSISTENT") is_persistant = true;
-            
+        }
               
         int acc_id = stoi(splitted_cmd[1]);
         int acc_pwd = stoi(splitted_cmd[2]);
@@ -94,7 +97,9 @@ void ATM::parse_command(string command) {
         
     } else if (splitted_cmd[0] == "W") {
         // withdraw - <account> <password> <amount> <persistent>
-        if (splitted_cmd[4] == "PERSISTENT") is_persistant = true;
+        if ( arg_num == 5) {
+        if (splitted_cmd[4] == "PERSISTENT" ) is_persistant = true;
+        }
         
         int acc_id = stoi(splitted_cmd[1]);
         int acc_pwd = stoi(splitted_cmd[2]);
@@ -111,8 +116,9 @@ void ATM::parse_command(string command) {
         
     } else if (splitted_cmd[0] == "B") {
         // check balance - <account> <password> <persistent>
+        if ( arg_num == 4) {
         if (splitted_cmd[3] == "PERSISTENT") is_persistant = true;
-
+        }
         int acc_id = std::stoi(splitted_cmd[1]);
         int acc_pwd = std::stoi(splitted_cmd[2]);
 
@@ -128,8 +134,9 @@ void ATM::parse_command(string command) {
 
     } else if (splitted_cmd[0] == "Q") {
         // close account - <account> <password> <persistent>
+        if ( arg_num == 4) {
         if (splitted_cmd[3] == "PERSISTENT") is_persistant = true;
-
+        }
         int acc_id = std::stoi(splitted_cmd[1]);
         int acc_pwd = std::stoi(splitted_cmd[2]);
 
@@ -143,8 +150,9 @@ void ATM::parse_command(string command) {
 
     } else if (splitted_cmd[0] == "T") {
         // make a transaction -  <source account> <password> <target account> <amount> <persistent>
+        if ( arg_num == 6) {
         if (splitted_cmd[5] == "PERSISTENT") is_persistant = true;
-
+        }
         int acc_id = std::stoi(splitted_cmd[1]);
         int acc_pwd = std::stoi(splitted_cmd[2]);
         int target_amount = std::stoi(splitted_cmd[3]);
@@ -161,7 +169,9 @@ void ATM::parse_command(string command) {
 
     } else if (splitted_cmd[0] == "C") {
         // close atm - <target ATM ID> <persistent>
+        if ( arg_num == 3) {
         if (splitted_cmd[2] == "PERSISTENT") is_persistant = true;
+        }
 
         int target_atm = stoi(splitted_cmd[1]);
 
@@ -175,8 +185,9 @@ void ATM::parse_command(string command) {
 
     } else if (splitted_cmd[0] == "R") {
         // rollback - <iterations> <persistent>
-        if (splitted_cmd[2] == "PERSISTENT") is_persistant = true;
-        
+        if ( arg_num == 3) {
+        if (splitted_cmd[2] == "PERSISTENT" ) is_persistant = true;
+        }
         int iterations = std::stoi(splitted_cmd[1]);
         
         int res = R(iterations, is_persistant); 
