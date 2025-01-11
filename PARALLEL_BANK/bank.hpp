@@ -60,7 +60,9 @@ public:
     ~Bank();
     // printing to the screen function
     // inside this function the bank checks if a request to close an ATM was submitted
-    void screen_print() const;
+    void print_to_screen();
+
+    static void* print_thread_entry(void* obj);
 
     // get the wanted bank account
     BankAccount* get_account(int id) const;
@@ -88,6 +90,11 @@ public:
     MultiLock* get_account_list_lock();
 
     std::vector<Status> get_status_vector();
+};
+
+struct PrintThread {
+    Bank* bank;
+    bool* finished;
 };
 
 

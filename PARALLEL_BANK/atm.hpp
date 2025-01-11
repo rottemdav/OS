@@ -28,6 +28,7 @@ class ATM {
     Log* log_ptr;  // Pointer to the log object
     bool close_req;   // true - a signal to close was sent
     pthread_cond_t close_sig; // cv to signal the bank that atm closed
+    pthread_mutex_t close_mutex; // for the self closing operation
 
     public:
         // Constructor
@@ -35,6 +36,7 @@ class ATM {
             : bankptr(bank),path(dir), atm_id(id), is_active(is_active), log_ptr(log), close_req(close_req)
         { 
             pthread_cond_init(&close_sig, nullptr);
+            pthread_mutex_init(&close_mutex, nullptr);
         }
 
         // Destructor

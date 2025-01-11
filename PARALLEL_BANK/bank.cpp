@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "bank.hpp"
 
 #define _ACCOUNT_ 0
@@ -12,19 +13,39 @@ Bank::Bank(Log* log, std::vector<ATM>* atm) : accounts_list(), rollback_db(), fe
 // Destructor
 Bank::~Bank() {}
 
-void Bank::screen_print() const {
+void Bank::print_to_screen() {
+    account_list_lock.enter_read();
 
     std::vector<BankAccount> copied_list = this->accounts_list;
     std::sort(copied_list.begin(), copied_list.end(), [](const BankAccount& tmp1, const BankAccount& tmp2) {
         return tmp1.get_id() < tmp2.get_id();
     });
 
+    std::cout << "\033[1;1H";
+    std::cout << "\033[2J";
     for (const BankAccount& account : copied_list ) {
         std::cout << "Account" << account.get_id()
                   << "Balance - " << account.get_balance() << "$, "
                   << "Account Password - " << account.get_pwd()
                   << std::endl;
     }
+    account_list_lock.exit_read();
+}
+
+void* Bank::print_thread_entry(void* obj) {
+    PrintThread* prnt_th =  static_cast<PrintThread*>(obj);
+    Bank* bank = prnt_th->bank;
+    bool* finished = prnt_th->finished;
+    while(1) {
+        //sleep for 0.5 secs
+        sleep(0.5);
+        if (*finished)  {
+            break;
+        }
+        bank->print_to_screen();
+
+    }
+    return nullptr;
 }
 
 BankAccount* Bank::get_account(int id) const {
@@ -145,12 +166,24 @@ int Bank::close_atm(int source_id, int target_id, bool is_per) {
         return FAILURE; 
     }
 
+    pthread_mutex_t* atm_list_mutex = atm_list_lock.get_lock();
+    pthread_cond_t* close_sig = atm_to_close->get_close_sig();
+
     // caller atm - > bank - > callee atm terminates - > signals back to the bank for termination - > bank logs to the log - > back to the caller
-    // send to atm with atm_id to close
+
+    if (source_id == target_id) {
+        atm_list_lock.exit_write();
+        pthread_mutex_lock(atm_list_mutex);
+        atm_to_close->set_is_active(false);
+        pthread_mutex_unlock(atm_list_mutex);
+        atm_list_lock.enter_write();
+        return SUCCESS;
+    }
     
     // Flagging the target atm to close 
     atm_to_close->set_close_req(true);
     /* the callee atm checks if there's active close request, if so - change activation status and notify the bank */
+
 
     // If already closed print error 
     if (!atm_to_close->get_is_active()) {
@@ -166,8 +199,6 @@ int Bank::close_atm(int source_id, int target_id, bool is_per) {
     atm_list_lock.exit_write();
 
     // Wait for the ATM to finish its operation
-    pthread_mutex_t* atm_list_mutex = atm_list_lock.get_lock();
-    pthread_cond_t* close_sig = atm_to_close->get_close_sig();
 
     pthread_mutex_lock(atm_list_mutex);
     // Wait for target ATM to finish operation

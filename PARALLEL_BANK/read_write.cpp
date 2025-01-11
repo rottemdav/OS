@@ -1,4 +1,5 @@
 #include "read_write.hpp"
+#include <iostream>
 
 // Constructor
 MultiLock::MultiLock() 
@@ -17,11 +18,14 @@ MultiLock::~MultiLock() {
 
 // Enter read
 void MultiLock::enter_read() {
+    //std::cout << "thread " << pthread_self() << "attempting to lock and read mutex\n";
     pthread_mutex_lock(&lock);
+    //std::cout << "thread " << pthread_self() << "acquired read mutex\n";
     while (writer_active || waiting_writers > 0) {
         pthread_cond_wait(&readers_allowed, &lock);
     }
     active_readers++;
+    //std::cout << "thread " << pthread_self() << "releasing mutex\n";
     pthread_mutex_unlock(&lock);
 }
 
@@ -37,13 +41,16 @@ void MultiLock::exit_read() {
 
 // Enter write
 void MultiLock::enter_write() {
+    //std::cout << "thread " << pthread_self() << "attempting to lock and write mutex\n";
     pthread_mutex_lock(&lock);
+    //std::cout << "thread " << pthread_self() << "aquired write mutex\n";
     waiting_writers++;
     while (writer_active || active_readers > 0) {
         pthread_cond_wait(&writer_allowed, &lock);
     }
     writer_active = true;
     waiting_writers--;
+    //std::cout << "thread " << pthread_self() << "releasing write mutex\n";
     pthread_mutex_unlock(&lock);
 }
 
