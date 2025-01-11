@@ -32,9 +32,11 @@ void ATM::read_file() {
         // Check for shut down signal from the bank
         if (close_req == true) { 
             // switch the flag
+            pthread_mutex_lock(&close_mutex);
             is_active = false;
             // send a signal back to the bank that the atm is closed
             pthread_cond_signal(&close_sig);
+            pthread_mutex_unlock(&close_mutex);
 
         }
 
@@ -55,148 +57,137 @@ void ATM::parse_command(string command) {
     while (stream >> str_cut) {
         splitted_cmd.push_back(str_cut); // saves the splitted parts of command in a vector
     }
-    bool is_persistant;
+    bool is_persistant = false;
+    int vip_lvl = 0;
+    for (auto &token : splitted_cmd) {
+        if (token == "PERSISTENT") {
+            is_persistant = true;
+        } else if (token.rfind("VIP=", 0) == 0) {
+            std::string vip_num = token.substr(4);
+            vip_lvl = std::stoi(vip_num);
+        }
+    }
     size_t arg_num = splitted_cmd.size();
     // If command has persistent it will run twice in case failed
     if (splitted_cmd[0] == "O") {
         // open account - <account> <password> <initial amount> <persistent>
-        if ( arg_num == 5) {
-        if (splitted_cmd[4] == "PERSISTENT") is_persistant = true;
-        }
         
         int acc_id = stoi(splitted_cmd[1]);
         int acc_pwd = stoi(splitted_cmd[2]);
         int amount = stoi(splitted_cmd[3]);
          
-        int res = O(acc_id, acc_pwd, amount, is_persistant);
+        int res = O(acc_id, acc_pwd, amount, is_persistant, vip_lvl);
 
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            O(acc_id, acc_pwd, amount, is_persistant);
+            O(acc_id, acc_pwd, amount, is_persistant, vip_lvl);
         }
         
     } else if (splitted_cmd[0] == "D") {
         // deposit - <account> <password> <amount> <persistent>
-        if ( arg_num == 5) {
-        if (splitted_cmd[4] == "PERSISTENT") is_persistant = true;
-        }
               
         int acc_id = stoi(splitted_cmd[1]);
         int acc_pwd = stoi(splitted_cmd[2]);
         int amount = stoi(splitted_cmd[3]);
         
-        int res = D(acc_id, acc_pwd, amount, is_persistant);
+        int res = D(acc_id, acc_pwd, amount, is_persistant, vip_lvl);
                 
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            D(acc_id, acc_pwd, amount, is_persistant);
+            D(acc_id, acc_pwd, amount, is_persistant, vip_lvl);
         }
         
     } else if (splitted_cmd[0] == "W") {
         // withdraw - <account> <password> <amount> <persistent>
-        if ( arg_num == 5) {
-        if (splitted_cmd[4] == "PERSISTENT" ) is_persistant = true;
-        }
         
         int acc_id = stoi(splitted_cmd[1]);
         int acc_pwd = stoi(splitted_cmd[2]);
         int amount = stoi(splitted_cmd[3]);
 
-        int res = W(acc_id, acc_pwd, amount, is_persistant);
+        int res = W(acc_id, acc_pwd, amount, is_persistant, vip_lvl);
        
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            W(acc_id, acc_pwd, amount, is_persistant);
+            W(acc_id, acc_pwd, amount, is_persistant, vip_lvl);
         }
         
     } else if (splitted_cmd[0] == "B") {
         // check balance - <account> <password> <persistent>
-        if ( arg_num == 4) {
-        if (splitted_cmd[3] == "PERSISTENT") is_persistant = true;
-        }
+
         int acc_id = std::stoi(splitted_cmd[1]);
         int acc_pwd = std::stoi(splitted_cmd[2]);
 
-        int res = B(acc_id, acc_pwd, is_persistant);
+        int res = B(acc_id, acc_pwd, is_persistant, vip_lvl);
 
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            B(acc_id, acc_pwd, is_persistant);
+            B(acc_id, acc_pwd, is_persistant, vip_lvl);
         }
         
 
     } else if (splitted_cmd[0] == "Q") {
         // close account - <account> <password> <persistent>
-        if ( arg_num == 4) {
-        if (splitted_cmd[3] == "PERSISTENT") is_persistant = true;
-        }
+
         int acc_id = std::stoi(splitted_cmd[1]);
         int acc_pwd = std::stoi(splitted_cmd[2]);
 
-        int res = Q(acc_id, acc_pwd, is_persistant);
+        int res = Q(acc_id, acc_pwd, is_persistant, vip_lvl);
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            Q(acc_id, acc_pwd, is_persistant);
+            Q(acc_id, acc_pwd, is_persistant, vip_lvl);
         }
 
     } else if (splitted_cmd[0] == "T") {
         // make a transaction -  <source account> <password> <target account> <amount> <persistent>
-        if ( arg_num == 6) {
-        if (splitted_cmd[5] == "PERSISTENT") is_persistant = true;
-        }
+ 
         int acc_id = std::stoi(splitted_cmd[1]);
         int acc_pwd = std::stoi(splitted_cmd[2]);
         int target_amount = std::stoi(splitted_cmd[3]);
         int amount = std::stoi(splitted_cmd[4]);
 
-        int res = T(acc_id, acc_pwd, target_amount, amount, is_persistant);
+        int res = T(acc_id, acc_pwd, target_amount, amount, is_persistant, vip_lvl);
 
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            T(acc_id, acc_pwd, target_amount, amount, is_persistant);
+            T(acc_id, acc_pwd, target_amount, amount, is_persistant, vip_lvl);
         }
 
     } else if (splitted_cmd[0] == "C") {
         // close atm - <target ATM ID> <persistent>
-        if ( arg_num == 3) {
-        if (splitted_cmd[2] == "PERSISTENT") is_persistant = true;
-        }
 
-        int target_atm = stoi(splitted_cmd[1]);
+        int target_atm = std::stoi(splitted_cmd[1]);
 
-        int res = C(target_atm, is_persistant); 
+        int res = C(target_atm, is_persistant, vip_lvl);
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            C(target_atm, is_persistant);
+            C(target_atm, is_persistant, vip_lvl);
         }
 
     } else if (splitted_cmd[0] == "R") {
         // rollback - <iterations> <persistent>
-        if ( arg_num == 3) {
-        if (splitted_cmd[2] == "PERSISTENT" ) is_persistant = true;
-        }
+
         int iterations = std::stoi(splitted_cmd[1]);
         
-        int res = R(iterations, is_persistant); 
+        int res = R(iterations, is_persistant, vip_lvl);
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            R(iterations, is_persistant);
+            R(iterations, is_persistant, vip_lvl);
         }
     }
 
@@ -214,7 +205,7 @@ void* ATM::thread_entry(void* obj) {
 }
 
 // Open account - write to account list
-int ATM::O(int id, int pwd, int init_amount, bool is_per){
+int ATM::O(int id, int pwd, int init_amount, bool is_per, int vip_lvl){
     // Lock account-list read
     
     bankptr->get_account_list_lock()->enter_read();
@@ -254,7 +245,7 @@ int ATM::O(int id, int pwd, int init_amount, bool is_per){
 }
 
 // Deposit money - write to account, read from account list
-int ATM::D(int id, int pwd, int amount, bool is_per){
+int ATM::D(int id, int pwd, int amount, bool is_per, int vip_lvl){
     // Aquire list lock
     bankptr->get_account_list_lock()->enter_read();
 
@@ -309,7 +300,7 @@ int ATM::D(int id, int pwd, int amount, bool is_per){
 }
 
 // Withdraw money - write to account, read from account list
-int ATM::W(int id, int pwd, int amount, bool is_per){
+int ATM::W(int id, int pwd, int amount, bool is_per, int vip_lvl){
     // Aquire list lock
     bankptr->get_account_list_lock()->enter_read();
 
@@ -375,7 +366,7 @@ int ATM::W(int id, int pwd, int amount, bool is_per){
 }
 
 // Get Account Balance - read from account and from list
-int ATM::B(int id, int pwd, bool is_per){
+int ATM::B(int id, int pwd, bool is_per, int vip_lvl){
     // Aquire list lock
     bankptr->get_account_list_lock()->enter_read();
 
@@ -423,7 +414,7 @@ int ATM::B(int id, int pwd, bool is_per){
 }
 
 // Close Account - need to make sure no one is reading or writing to it
-int ATM::Q(int id, int pwd, bool is_per){
+int ATM::Q(int id, int pwd, bool is_per, int vip_lvl){
     // Aquire list read lock
     bankptr->get_account_list_lock()->enter_read();
     
@@ -481,7 +472,7 @@ int ATM::Q(int id, int pwd, bool is_per){
 }
 
 // Transfer money - read from list, write to accounts 
-int ATM::T(int source_id, int pwd, int target_id, int amount, bool is_per){
+int ATM::T(int source_id, int pwd, int target_id, int amount, bool is_per, int vip_lvl){
     // Aquire acount list lock
     bankptr->get_account_list_lock()->enter_read();
 
@@ -568,14 +559,14 @@ int ATM::T(int source_id, int pwd, int target_id, int amount, bool is_per){
 }
 
 // Close ATM
-int ATM::C(int target_atm_id, bool is_per){
+int ATM::C(int target_atm_id, bool is_per, int vip_lvl){
     // the whole implementation is in the bank. 
     int close_status = bankptr->close_atm(atm_id, target_atm_id, is_per);
     return close_status;
 }
 
 // Rollback to the status {iterations} back 
-int ATM::R(int iteration, bool is_per){
+int ATM::R(int iteration, bool is_per, int vip_lvl){
     
     // Calculate the requsted iteration
     size_t   rollback_index = bankptr->get_status_vector().size() - 1 - iteration;

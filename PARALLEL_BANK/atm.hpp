@@ -27,6 +27,7 @@ class ATM {
     bool is_active;   // ATM status
     Log* log_ptr;  // Pointer to the log object
     bool close_req;   // true - a signal to close was sent
+    
     pthread_cond_t close_sig; // cv to signal the bank that atm closed
     pthread_mutex_t close_mutex; // for the self closing operation
 
@@ -55,28 +56,28 @@ class ATM {
         static void* thread_entry(void* obj);
 
         // Open bank account
-        int O(int id, int pwd, int init_amount, bool is_per);
+        int O(int id, int pwd, int init_amount, bool is_per, int vip_lvl);
         
         // Deposit money into account
-        int D(int id, int pwd, int amount, bool is_per);
+        int D(int id, int pwd, int amount, bool is_per, int vip_lvl);
         
         // Withdraw money from account
-        int W(int id, int pwd, int amount, bool is_per);
+        int W(int id, int pwd, int amount, bool is_per, int vip_lvl);
         
         // Get account balance
-        int B(int id, int pwd, bool is_per);
+        int B(int id, int pwd, bool is_per, int vip_lvl);
         
         // Close bank account
-        int Q(int id, int pwd, bool is_per);
+        int Q(int id, int pwd, bool is_per, int vip_lvl);
         
         // Transfer money between bank accounts
-        int T(int source_id, int pwd, int target_id, int amount, bool is_per);
+        int T(int source_id, int pwd, int target_id, int amount, bool is_per, int vip_lvl);
 
         // Close ATM
-        int C(int target_atm_id, bool is_per);
+        int C(int target_atm_id, bool is_per, int vip_lvl);
 
         // Rollback to the status {iterations} back
-        int R(int iteration, bool is_per);
+        int R(int iteration, bool is_per, int vip_lvl);
 
         //getter
         int get_id() const { return atm_id; }

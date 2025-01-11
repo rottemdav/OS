@@ -7,13 +7,14 @@
 
 // Constructor
 Bank::Bank(Log* log, std::vector<ATM>* atm) : accounts_list(), rollback_db(), fees_account(), 
-        atm_list_pointer(atm), log_ptr(log) {} 
+        atm_list_pointer(atm), log_ptr(log), rollback_req(0) {} 
 
 
 // Destructor
 Bank::~Bank() {}
 
 void Bank::print_to_screen() {
+
     account_list_lock.enter_read();
 
     std::vector<BankAccount> copied_list = this->accounts_list;
@@ -30,6 +31,28 @@ void Bank::print_to_screen() {
                   << std::endl;
     }
     account_list_lock.exit_read();
+
+    //check if there's atms to close
+    int sigs_received = 0;
+    int req_num = 0;
+    atm_list_lock.enter_read();
+    auto &atm_list = *atm_list_pointer;
+    for (auto &atm : atm_list) {
+        if (atm.get_close_req()) {
+            req_num++;
+            pthread_cond_t* close_sig = atm.get_close_sig();
+            pthread_mutex_t* atm_list_mutex = atm_list_lock.get_lock();
+            pthread_mutex_lock(atm_list_mutex);
+                while(atm.get_is_active()) {
+                    pthread_cond_wait(close_sig, atm_list_mutex); //mutex pointer
+                    sigs_received++;
+                }
+            pthread_mutex_unlock(atm_list_mutex); 
+
+        }
+    }
+    atm_list_lock.exit_read();
+
 }
 
 void* Bank::print_thread_entry(void* obj) {
@@ -213,6 +236,7 @@ int Bank::close_atm(int source_id, int target_id, bool is_per) {
     // Print success message
     std::string success = "Bank " + std::to_string(source_id) + " closed " + std::to_string(target_id) + " successfully";
     log_ptr->write_to_log(success);
+    atm_list_lock.exit_write();
     return SUCCESS;
 }
 
@@ -247,3 +271,15 @@ std::vector<Status> Bank::get_status_vector(){
     return rollback_db;
 }
 
+int Bank::get_close_req_num() {
+    atm_list_lock.enter_read();
+    int req_num = 0;
+    auto &atm_list = *atm_list_pointer;
+    for (auto &atm : atm_list) {
+        if (atm.get_close_req()) {
+            req_num++;
+        }
+    }
+    atm_list_lock.enter_read();
+    return req_num;
+}

@@ -45,6 +45,7 @@ private:
     BankAccount* fees_account;
     std::vector<ATM>* atm_list_pointer; // a pointer to the vector object of atms
     Log* log_ptr;
+    int rollback_req;
     // vector of some sort to check rollback requsts 
     
     // Locks for lists
@@ -90,6 +91,8 @@ public:
     MultiLock* get_account_list_lock();
 
     std::vector<Status> get_status_vector();
+
+    int Bank::get_close_req_num();
 };
 
 struct PrintThread {
