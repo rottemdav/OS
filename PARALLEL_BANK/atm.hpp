@@ -90,4 +90,12 @@ class ATM {
         void set_is_active(bool value) { is_active = value;}
 };
 
+struct Cmd {
+    std::string cmd_type;
+    std::vector<int> cmd_param;
+    bool is_persistent;
+    int vip_lvl;
+    int atm_id;
+};
+
 #endif // ATM_H

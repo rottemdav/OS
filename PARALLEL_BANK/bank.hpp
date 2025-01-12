@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <pthread.h>
 #include <random>
+#include <queue>
 
 #include "bank_account.hpp"
 #include "atm.hpp"
@@ -13,6 +14,7 @@
 
 class ATM;
 class Log;
+class Cmd;
 
 // the class for the statuses that will be used for the rollback
 class Status {
@@ -46,6 +48,9 @@ private:
     std::vector<ATM>* atm_list_pointer; // a pointer to the vector object of atms
     Log* log_ptr;
     int rollback_req;
+
+    std::queue<Cmd> reg_queue;
+    std::queue<Cmd> vip_queue;
     // vector of some sort to check rollback requsts 
     
     // Locks for lists
@@ -92,7 +97,13 @@ public:
 
     std::vector<Status> get_status_vector();
 
-    int Bank::get_close_req_num();
+    int get_close_req_num();
+
+    void* reg_thread_entry(void* obj); // need to implement
+    void* vip_thread_entry(void* obj); // need to implement
+
+    void push_cmd_to_queue(Cmd& cmd, int queue_type);
+    Cmd pop_and_copy_cmd(Cmd& cmd, int queue_type);
 };
 
 struct PrintThread {

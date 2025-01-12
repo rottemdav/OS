@@ -10,9 +10,53 @@
 using namespace std;
 #define MAX_STATUS
 
-/* the backbone function of the thread, run through the commands file and process
- * each command with parse_command(cmd).
+
+/* the thread entry function serves as the entry point for the thread create by
+ * thread_create. It connects pthread library (works with void*) with ATM class.
+ * This is the first function that the thread executes after creation.
+ * When read_file() finishes - the thread exits and stops running.
 */
+
+void* ATM::thread_entry(void* obj) {
+    ATM* atm = static_cast<ATM*>(obj);
+    atm->read_file();
+    return nullptr;
+}
+
+void ATM::read_file() {
+    std::string line;
+    std::ifstream cmd_file(path);
+    if (!cmd_file.is_open()) {
+        std::cerr << "error opening the file" << std::endl;
+        return ;
+    }
+
+    while (std::getline(cmd_file, line)) {
+        Cmd cmd = parse_cmd(line); // need to implement new
+        cmd.atm_id = this->atm_id;
+
+        if (cmd.vip_lvl > 0) {
+            bankptr->push_cmd_to_queue(cmd, 1); // need to implement this with mutex and locks
+        } else {
+            bankptr->push_cmd_to_queue(cmd, 2);
+        }
+
+        // Check for shut down signal from the bank
+        if (close_req == true) { 
+            // switch the flag
+            pthread_mutex_lock(&close_mutex);
+            is_active = false;
+            // send a signal back to the bank that the atm is closed
+            pthread_cond_signal(&close_sig);
+            pthread_mutex_unlock(&close_mutex);
+
+        }
+
+    }
+        // finished go through the file or got interrupted - either way close the file
+    cmd_file.close();
+}
+/*
 void ATM::read_file() {
     std::string line;
     std::ifstream cmd_file(path);
@@ -47,6 +91,40 @@ void ATM::read_file() {
     // finished go through the file or got interrupted - either way close the file
     cmd_file.close();
     return;
+}*/
+
+Cmd ATM::parse_cmd(string command_line) {
+    Cmd cmd;
+    std::istringstream stream(command_line);
+    std::string str_cut;
+    std::vector<std::string> splitted_cmd;
+
+    // saves the splitted parts of command in a vector
+    while (stream >> str_cut) {
+        splitted_cmd.push_back(str_cut); 
+    }
+
+    bool is_persistant = false;
+    int vip_lvl = 0;
+
+    for (auto &token : splitted_cmd) {
+        if (token == "PERSISTENT") {
+            is_persistant = true;
+        } else if (token.rfind("VIP=", 0) == 0) {
+            std::string vip_num = token.substr(4);
+            vip_lvl = std::stoi(vip_num);
+        }
+    }
+    cmd.cmd_type = splitted_cmd[1];
+    splitted_cmd.erase(splitted_cmd.begin());
+    for (std::string elem: splitted_cmd) {
+        cmd.cmd_param.push_back(stoi(elem));
+    }
+    cmd.is_persistent = is_persistant;
+    cmd.vip_lvl = vip_lvl;
+    cmd.atm_id = -1; // to be changed in the read_file() function
+    return cmd;
+
 }
 
 void ATM::parse_command(string command) {
@@ -67,7 +145,7 @@ void ATM::parse_command(string command) {
             vip_lvl = std::stoi(vip_num);
         }
     }
-    size_t arg_num = splitted_cmd.size();
+    //size_t arg_num = splitted_cmd.size();
     // If command has persistent it will run twice in case failed
     if (splitted_cmd[0] == "O") {
         // open account - <account> <password> <initial amount> <persistent>
@@ -192,17 +270,6 @@ void ATM::parse_command(string command) {
     }
 
 } // end parse_comand
-
-/* the thread entry function serves as the entry point for the thread create by
- * thread_create. It connects pthread library (works with void*) with ATM class.
- * This is the first function that the thread executes after creation.
- * When read_file() finishes - the thread exits and stops running.
-*/
-void* ATM::thread_entry(void* obj) {
-    ATM* atm = static_cast<ATM*>(obj);
-    atm->read_file();
-    return nullptr;
-}
 
 // Open account - write to account list
 int ATM::O(int id, int pwd, int init_amount, bool is_per, int vip_lvl){

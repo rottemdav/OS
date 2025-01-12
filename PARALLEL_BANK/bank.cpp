@@ -7,11 +7,35 @@
 
 // Constructor
 Bank::Bank(Log* log, std::vector<ATM>* atm) : accounts_list(), rollback_db(), fees_account(), 
-        atm_list_pointer(atm), log_ptr(log), rollback_req(0) {} 
+        atm_list_pointer(atm), log_ptr(log), rollback_req(0), reg_queue(), vip_queue() {} 
 
 
 // Destructor
 Bank::~Bank() {}
+
+// <<<<<<<<<<< --------------------------- threading functions  ------------------------------ >>>>>>>>>>>>
+
+// the operating function for the regular worker thread
+void* Bank::reg_thread_entry(void* obj) {
+    Bank* bank = static_cast<Bank*>(obj);
+    while (1) {
+        Cmd cmd;
+        bool get_next_cmd = bank->pop_and_copy_reg_cmd(cmd); //need to implement
+        if (!get_next_cmd) {
+            //reach the end of the queue
+            break;
+        }
+    }
+    bank->exe_cmd(cmd); // need to implement
+    return nullptr;
+}
+
+// the operating function for the vip worker thread
+void* Bank::vip_thread_entry(void* obj) {
+    //fill in the same as the regular thread entry
+}
+
+// <<<<<<<<<<< --------------------------- bank functions  ------------------------------ >>>>>>>>>>>>
 
 void Bank::print_to_screen() {
 
