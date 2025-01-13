@@ -48,9 +48,6 @@ private:
     std::vector<ATM>* atm_list_pointer; // a pointer to the vector object of atms
     Log* log_ptr;
     int rollback_req;
-
-    std::queue<Cmd> reg_queue;
-    std::queue<Cmd> vip_queue;
     // vector of some sort to check rollback requsts 
     
     // Locks for lists

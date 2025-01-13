@@ -1,11 +1,5 @@
-2: New account id id 54321 with password 4321 and initial balance 200
 1: New account id id 12345 with password 1234 and initial balance 100
 1: Account 12345 new balance is 50 after 50 $ was withdrawn
-2: Account 54321 new balance is 250 after 50 $ was deposited
 1: Account 12345 new balance is 62 after 12 $ was deposited
-2: Account 54321 new balance is 150 after 100 $ was withdrawn
 1: New account id id 12346 with password 234 and initial balance 45
-2: New account id id 65432 with password 2345 and initial balance 300
-2: Account 65432 new balance is 325 after 25 $ was deposited
 Error 1 Your transaction failed - password for account id 12345 is incorrect
-2: Account 54321 new balance is 75 after 75 $ was withdrawn

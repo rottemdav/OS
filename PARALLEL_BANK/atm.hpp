@@ -8,11 +8,14 @@
 #include "bank.hpp"
 #include "log.hpp"
 #include "bank_account.hpp"
+#include "vip_th.hpp"
 
 using namespace std;
 
 class Bank;
 class Log;
+class VipQueue;
+
 
 enum Operation_status{
     FAILURE = 0,
@@ -22,6 +25,7 @@ enum Operation_status{
 // ATM class
 class ATM {
     Bank* bankptr;    // Pointer to the bank object
+    VipQueue* vipptr; //Pointer to the vip queue object
     string path;      // Path to the ATM operations file
     int atm_id;       // ATM ID
     bool is_active;   // ATM status
@@ -33,8 +37,8 @@ class ATM {
 
     public:
         // Constructor
-        ATM(Bank* bank, string dir, int id, bool is_active, Log* log, bool close_req)
-            : bankptr(bank),path(dir), atm_id(id), is_active(is_active), log_ptr(log), close_req(close_req)
+        ATM(Bank* bank,VipQueue* vip_queue,const string& dir, int id, bool is_active, Log* log, bool close_req)
+            : bankptr(bank),vipptr(vip_queue), path(dir), atm_id(id), is_active(is_active), log_ptr(log), close_req(close_req)
         { 
             pthread_cond_init(&close_sig, nullptr);
             pthread_mutex_init(&close_mutex, nullptr);
@@ -43,6 +47,7 @@ class ATM {
         // Destructor
         ~ATM() { 
             pthread_cond_destroy(&close_sig); 
+            pthread_mutex_destroy(&close_mutex); 
         }
 
 
@@ -50,34 +55,37 @@ class ATM {
         void read_file();
         
         // Parse the command
-        void parse_command(string command);
+        Cmd parse_cmd(std::string command_line);
 
         // create the thread that will be tied to the atm
         static void* thread_entry(void* obj);
 
         // Open bank account
-        int O(int id, int pwd, int init_amount, bool is_per, int vip_lvl);
+        int O(int id, int pwd, int init_amount, bool is_per);
         
         // Deposit money into account
-        int D(int id, int pwd, int amount, bool is_per, int vip_lvl);
+        int D(int id, int pwd, int amount, bool is_per);
         
         // Withdraw money from account
-        int W(int id, int pwd, int amount, bool is_per, int vip_lvl);
+        int W(int id, int pwd, int amount, bool is_per);
         
         // Get account balance
-        int B(int id, int pwd, bool is_per, int vip_lvl);
+        int B(int id, int pwd, bool is_per);
         
         // Close bank account
-        int Q(int id, int pwd, bool is_per, int vip_lvl);
+        int Q(int id, int pwd, bool is_per);
         
         // Transfer money between bank accounts
-        int T(int source_id, int pwd, int target_id, int amount, bool is_per, int vip_lvl);
+        int T(int source_id, int pwd, int target_id, int amount, bool is_per);
 
         // Close ATM
-        int C(int target_atm_id, bool is_per, int vip_lvl);
+        int C(int target_atm_id, bool is_per);
 
         // Rollback to the status {iterations} back
-        int R(int iteration, bool is_per, int vip_lvl);
+        int R(int iteration, bool is_per);
+
+
+        void exe_cmd(Cmd cmd);
 
         //getter
         int get_id() const { return atm_id; }
@@ -90,12 +98,6 @@ class ATM {
         void set_is_active(bool value) { is_active = value;}
 };
 
-struct Cmd {
-    std::string cmd_type;
-    std::vector<int> cmd_param;
-    bool is_persistent;
-    int vip_lvl;
-    int atm_id;
-};
+
 
 #endif // ATM_H

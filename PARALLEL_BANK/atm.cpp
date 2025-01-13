@@ -1,4 +1,5 @@
 #include "atm.hpp"  // ATM class
+#include "vip_th.hpp"
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -6,10 +7,10 @@
 #include <vector>
 #include <sys/syscall.h>
 
-
 using namespace std;
 #define MAX_STATUS
 
+struct Cmd;
 
 /* the thread entry function serves as the entry point for the thread create by
  * thread_create. It connects pthread library (works with void*) with ATM class.
@@ -36,9 +37,11 @@ void ATM::read_file() {
         cmd.atm_id = this->atm_id;
 
         if (cmd.vip_lvl > 0) {
-            bankptr->push_cmd_to_queue(cmd, 1); // need to implement this with mutex and locks
+            vipptr->push_vip_cmd(cmd); 
+
+            // wait for vip confirmation 
         } else {
-            bankptr->push_cmd_to_queue(cmd, 2);
+            exe_cmd(cmd);
         }
 
         // Check for shut down signal from the bank
@@ -56,42 +59,6 @@ void ATM::read_file() {
         // finished go through the file or got interrupted - either way close the file
     cmd_file.close();
 }
-/*
-void ATM::read_file() {
-    std::string line;
-    std::ifstream cmd_file(path);
-    if (!cmd_file.is_open()) {
-        std::cerr << "error opening the file" << std::endl;
-        return ;
-    }
-
-    while (std::getline(cmd_file, line)) {
-        // ATM wake up 100ms
-        sleep(0.1);
-        
-        // Perform transaction
-        // parse the commnd and execute the matching command
-        parse_command(line);
-
-        // Check for shut down signal from the bank
-        if (close_req == true) { 
-            // switch the flag
-            pthread_mutex_lock(&close_mutex);
-            is_active = false;
-            // send a signal back to the bank that the atm is closed
-            pthread_cond_signal(&close_sig);
-            pthread_mutex_unlock(&close_mutex);
-
-        }
-
-        // Sleep for 1 second
-        sleep(1);
-    }
-
-    // finished go through the file or got interrupted - either way close the file
-    cmd_file.close();
-    return;
-}*/
 
 Cmd ATM::parse_cmd(string command_line) {
     Cmd cmd;
@@ -113,10 +80,16 @@ Cmd ATM::parse_cmd(string command_line) {
         } else if (token.rfind("VIP=", 0) == 0) {
             std::string vip_num = token.substr(4);
             vip_lvl = std::stoi(vip_num);
-        }
+        } 
     }
-    cmd.cmd_type = splitted_cmd[1];
+
+    std::cout << "first letter: " << splitted_cmd[0] << endl;
+
+    cmd.cmd_type = splitted_cmd[0];
     splitted_cmd.erase(splitted_cmd.begin());
+    if (is_persistant || vip_lvl > 0) {
+        splitted_cmd.pop_back();
+    }
     for (std::string elem: splitted_cmd) {
         cmd.cmd_param.push_back(stoi(elem));
     }
@@ -127,152 +100,148 @@ Cmd ATM::parse_cmd(string command_line) {
 
 }
 
-void ATM::parse_command(string command) {
-    std::istringstream stream(command);
-    std::string str_cut;
-    std::vector<std::string> splitted_cmd;
+void ATM::exe_cmd(Cmd cmd) {
+    std::string cmd_type = cmd.cmd_type;
+    bool is_persistant = cmd.is_persistent;
+    //std::cout << "the vip lvl is: " << cmd.vip_lvl << endl;
 
-    while (stream >> str_cut) {
-        splitted_cmd.push_back(str_cut); // saves the splitted parts of command in a vector
+    if (cmd.vip_lvl == 0) {
+        // ATM wake up 100ms
+        sleep(0.1);
     }
-    bool is_persistant = false;
-    int vip_lvl = 0;
-    for (auto &token : splitted_cmd) {
-        if (token == "PERSISTENT") {
-            is_persistant = true;
-        } else if (token.rfind("VIP=", 0) == 0) {
-            std::string vip_num = token.substr(4);
-            vip_lvl = std::stoi(vip_num);
-        }
-    }
-    //size_t arg_num = splitted_cmd.size();
+    
     // If command has persistent it will run twice in case failed
-    if (splitted_cmd[0] == "O") {
+    if (cmd_type == "O") {
         // open account - <account> <password> <initial amount> <persistent>
         
-        int acc_id = stoi(splitted_cmd[1]);
-        int acc_pwd = stoi(splitted_cmd[2]);
-        int amount = stoi(splitted_cmd[3]);
+        int acc_id = (cmd.cmd_param[0]);
+        int acc_pwd = (cmd.cmd_param[1]);
+        int amount = (cmd.cmd_param[2]);
          
-        int res = O(acc_id, acc_pwd, amount, is_persistant, vip_lvl);
+        int res = O(acc_id, acc_pwd, amount, is_persistant);
 
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            O(acc_id, acc_pwd, amount, is_persistant, vip_lvl);
+            O(acc_id, acc_pwd, amount, is_persistant);
         }
         
-    } else if (splitted_cmd[0] == "D") {
+    } else if (cmd_type == "D") {
         // deposit - <account> <password> <amount> <persistent>
               
-        int acc_id = stoi(splitted_cmd[1]);
-        int acc_pwd = stoi(splitted_cmd[2]);
-        int amount = stoi(splitted_cmd[3]);
+        int acc_id = (cmd.cmd_param[0]);
+        int acc_pwd = (cmd.cmd_param[1]);
+        int amount = (cmd.cmd_param[2]);
         
-        int res = D(acc_id, acc_pwd, amount, is_persistant, vip_lvl);
+        int res = D(acc_id, acc_pwd, amount, is_persistant);
                 
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            D(acc_id, acc_pwd, amount, is_persistant, vip_lvl);
+            D(acc_id, acc_pwd, amount, is_persistant);
         }
         
-    } else if (splitted_cmd[0] == "W") {
+    } else if (cmd_type == "W") {
         // withdraw - <account> <password> <amount> <persistent>
         
-        int acc_id = stoi(splitted_cmd[1]);
-        int acc_pwd = stoi(splitted_cmd[2]);
-        int amount = stoi(splitted_cmd[3]);
+        int acc_id = (cmd.cmd_param[0]);
+        int acc_pwd = (cmd.cmd_param[1]);
+        int amount = (cmd.cmd_param[2]);
 
-        int res = W(acc_id, acc_pwd, amount, is_persistant, vip_lvl);
+        int res = W(acc_id, acc_pwd, amount, is_persistant);
        
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            W(acc_id, acc_pwd, amount, is_persistant, vip_lvl);
+            W(acc_id, acc_pwd, amount, is_persistant);
         }
         
-    } else if (splitted_cmd[0] == "B") {
+    } else if (cmd_type == "B") {
         // check balance - <account> <password> <persistent>
 
-        int acc_id = std::stoi(splitted_cmd[1]);
-        int acc_pwd = std::stoi(splitted_cmd[2]);
+        int acc_id = (cmd.cmd_param[0]);
+        int acc_pwd = (cmd.cmd_param[1]);
 
-        int res = B(acc_id, acc_pwd, is_persistant, vip_lvl);
+        int res = B(acc_id, acc_pwd, is_persistant);
 
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            B(acc_id, acc_pwd, is_persistant, vip_lvl);
+            B(acc_id, acc_pwd, is_persistant);
         }
         
 
-    } else if (splitted_cmd[0] == "Q") {
+    } else if (cmd_type == "Q") {
         // close account - <account> <password> <persistent>
 
-        int acc_id = std::stoi(splitted_cmd[1]);
-        int acc_pwd = std::stoi(splitted_cmd[2]);
+        int acc_id = (cmd.cmd_param[0]);
+        int acc_pwd = (cmd.cmd_param[1]);
 
-        int res = Q(acc_id, acc_pwd, is_persistant, vip_lvl);
+        int res = Q(acc_id, acc_pwd, is_persistant);
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            Q(acc_id, acc_pwd, is_persistant, vip_lvl);
+            Q(acc_id, acc_pwd, is_persistant);
         }
 
-    } else if (splitted_cmd[0] == "T") {
+    } else if (cmd_type == "T") {
         // make a transaction -  <source account> <password> <target account> <amount> <persistent>
  
-        int acc_id = std::stoi(splitted_cmd[1]);
-        int acc_pwd = std::stoi(splitted_cmd[2]);
-        int target_amount = std::stoi(splitted_cmd[3]);
-        int amount = std::stoi(splitted_cmd[4]);
+        int acc_id = (cmd.cmd_param[0]);
+        int acc_pwd = (cmd.cmd_param[1]);
+        int target_amount = (cmd.cmd_param[2]);
+        int amount = (cmd.cmd_param[3]);
 
-        int res = T(acc_id, acc_pwd, target_amount, amount, is_persistant, vip_lvl);
+        int res = T(acc_id, acc_pwd, target_amount, amount, is_persistant);
 
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            T(acc_id, acc_pwd, target_amount, amount, is_persistant, vip_lvl);
+            T(acc_id, acc_pwd, target_amount, amount, is_persistant);
         }
 
-    } else if (splitted_cmd[0] == "C") {
+    } else if (cmd_type == "C") {
         // close atm - <target ATM ID> <persistent>
 
-        int target_atm = std::stoi(splitted_cmd[1]);
+        int target_atm = (cmd.cmd_param[0]);
 
-        int res = C(target_atm, is_persistant, vip_lvl);
+        int res = C(target_atm, is_persistant);
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            C(target_atm, is_persistant, vip_lvl);
+            C(target_atm, is_persistant);
         }
 
-    } else if (splitted_cmd[0] == "R") {
+    } else if (cmd_type == "R") {
         // rollback - <iterations> <persistent>
 
-        int iterations = std::stoi(splitted_cmd[1]);
+        int iterations = (cmd.cmd_param[0]);
         
-        int res = R(iterations, is_persistant, vip_lvl);
+        int res = R(iterations, is_persistant);
         // If coomand failed and is persistent, try again
         if ((res == FAILURE) && is_persistant) {
             // Second run
             is_persistant = false;
-            R(iterations, is_persistant, vip_lvl);
+            R(iterations, is_persistant);
         }
+    }
+
+    if (cmd.vip_lvl == 0) {
+        //sleep for 1 sec
+        sleep(1);
     }
 
 } // end parse_comand
 
 // Open account - write to account list
-int ATM::O(int id, int pwd, int init_amount, bool is_per, int vip_lvl){
+int ATM::O(int id, int pwd, int init_amount, bool is_per){
     // Lock account-list read
     
     bankptr->get_account_list_lock()->enter_read();
@@ -312,7 +281,7 @@ int ATM::O(int id, int pwd, int init_amount, bool is_per, int vip_lvl){
 }
 
 // Deposit money - write to account, read from account list
-int ATM::D(int id, int pwd, int amount, bool is_per, int vip_lvl){
+int ATM::D(int id, int pwd, int amount, bool is_per){
     // Aquire list lock
     bankptr->get_account_list_lock()->enter_read();
 
@@ -367,7 +336,7 @@ int ATM::D(int id, int pwd, int amount, bool is_per, int vip_lvl){
 }
 
 // Withdraw money - write to account, read from account list
-int ATM::W(int id, int pwd, int amount, bool is_per, int vip_lvl){
+int ATM::W(int id, int pwd, int amount, bool is_per){
     // Aquire list lock
     bankptr->get_account_list_lock()->enter_read();
 
@@ -433,7 +402,7 @@ int ATM::W(int id, int pwd, int amount, bool is_per, int vip_lvl){
 }
 
 // Get Account Balance - read from account and from list
-int ATM::B(int id, int pwd, bool is_per, int vip_lvl){
+int ATM::B(int id, int pwd, bool is_per){
     // Aquire list lock
     bankptr->get_account_list_lock()->enter_read();
 
@@ -481,7 +450,7 @@ int ATM::B(int id, int pwd, bool is_per, int vip_lvl){
 }
 
 // Close Account - need to make sure no one is reading or writing to it
-int ATM::Q(int id, int pwd, bool is_per, int vip_lvl){
+int ATM::Q(int id, int pwd, bool is_per){
     // Aquire list read lock
     bankptr->get_account_list_lock()->enter_read();
     
@@ -539,7 +508,7 @@ int ATM::Q(int id, int pwd, bool is_per, int vip_lvl){
 }
 
 // Transfer money - read from list, write to accounts 
-int ATM::T(int source_id, int pwd, int target_id, int amount, bool is_per, int vip_lvl){
+int ATM::T(int source_id, int pwd, int target_id, int amount, bool is_per){
     // Aquire acount list lock
     bankptr->get_account_list_lock()->enter_read();
 
@@ -626,14 +595,14 @@ int ATM::T(int source_id, int pwd, int target_id, int amount, bool is_per, int v
 }
 
 // Close ATM
-int ATM::C(int target_atm_id, bool is_per, int vip_lvl){
+int ATM::C(int target_atm_id, bool is_per){
     // the whole implementation is in the bank. 
     int close_status = bankptr->close_atm(atm_id, target_atm_id, is_per);
     return close_status;
 }
 
 // Rollback to the status {iterations} back 
-int ATM::R(int iteration, bool is_per, int vip_lvl){
+int ATM::R(int iteration, bool is_per){
     
     // Calculate the requsted iteration
     size_t   rollback_index = bankptr->get_status_vector().size() - 1 - iteration;
