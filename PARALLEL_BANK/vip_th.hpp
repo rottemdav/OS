@@ -2,6 +2,7 @@
 #define VIP_TH_H
 
 #include <pthread.h>
+#include <atomic>
 #include "atm.hpp"
 
 class ATM;
@@ -30,7 +31,7 @@ class VipQueue {
     pthread_cond_t vip_available;
 
 public:
-    bool* finish;
+    std::atomic<bool>* finish;
 
     //Constructor
     VipQueue(): vip_queue(), finish() {
@@ -48,6 +49,10 @@ public:
     static void* vip_thread_entry(void* obj);
     void vip_worker();
     void push_vip_cmd(Cmd& cmd);
+
+    //getters
+    pthread_mutex_t& get_vip_lock()  {return vip_lock;}
+    pthread_cond_t& get_cond_sig()  { return vip_available;}
 
 };
 

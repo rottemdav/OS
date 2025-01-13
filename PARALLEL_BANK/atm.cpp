@@ -62,6 +62,10 @@ void ATM::read_file() {
 
 Cmd ATM::parse_cmd(string command_line) {
     Cmd cmd;
+    if (command_line.empty()) {
+        std::cerr << "Error: empty command line." << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
     std::istringstream stream(command_line);
     std::string str_cut;
     std::vector<std::string> splitted_cmd;
@@ -83,7 +87,7 @@ Cmd ATM::parse_cmd(string command_line) {
         } 
     }
 
-    std::cout << "first letter: " << splitted_cmd[0] << endl;
+    //std::cou << "first letter: " << splitted_cmd[0] << endl;
 
     cmd.cmd_type = splitted_cmd[0];
     splitted_cmd.erase(splitted_cmd.begin());
@@ -95,7 +99,8 @@ Cmd ATM::parse_cmd(string command_line) {
     }
     cmd.is_persistent = is_persistant;
     cmd.vip_lvl = vip_lvl;
-    cmd.atm_id = -1; // to be changed in the read_file() function
+    cmd.atm_id = this->atm_id; // to be changed in the read_file() function
+    cmd.atm = this;
     return cmd;
 
 }
@@ -233,10 +238,9 @@ void ATM::exe_cmd(Cmd cmd) {
         }
     }
 
-    if (cmd.vip_lvl == 0) {
-        //sleep for 1 sec
+      //sleep for 1 sec
         sleep(1);
-    }
+    
 
 } // end parse_comand
 
@@ -250,13 +254,13 @@ int ATM::O(int id, int pwd, int init_amount, bool is_per){
         
         // Enter write mode in account list
         bankptr->get_account_list_lock()->enter_write();
+        if (bankptr->account_exists(id) == 1) {
+            
+        }
         
         // Initialize an account and insert to list 
         BankAccount new_account(id, pwd, init_amount);
         bankptr->get_account_list()->push_back(new_account);
-
-        // Exit write mode 
-        bankptr->get_account_list_lock()->exit_write();
         
 
         // Write to log
@@ -266,6 +270,8 @@ int ATM::O(int id, int pwd, int init_amount, bool is_per){
        
         log_ptr->write_to_log(success);
 
+        // Exit write mode 
+        bankptr->get_account_list_lock()->exit_write();
         return SUCCESS;
     } else {
         // Release list lock, format error message and print error
@@ -603,13 +609,14 @@ int ATM::C(int target_atm_id, bool is_per){
 
 // Rollback to the status {iterations} back 
 int ATM::R(int iteration, bool is_per){
-    
+    unsigned int it = static_cast<unsigned int>(iteration);
     // Calculate the requsted iteration
-    size_t   rollback_index = bankptr->get_status_vector().size() - 1 - iteration;
+    unsigned int rollback_index = bankptr->get_status_vector().size()- 1 - iteration;
 
     // If there is no such iteration do nothing
-    if (rollback_index < 0 || rollback_index >= bankptr->get_status_vector().size())
+    if (rollback_index < 0 || it > bankptr->get_status_vector().size()- 1) {
         return FAILURE;
+    }
     
    
     // Aquire account list write lock
@@ -619,6 +626,14 @@ int ATM::R(int iteration, bool is_per){
     Status& rollback_status = bankptr->get_status_vector()[rollback_index];
     
     // Replace the current account list with the snapshot
+    if (rollback_status.get_snapshot_list().empty()) {
+        std::cout << "snap list is NULL!" << endl;
+    }
+
+    if (bankptr->get_account_list() == nullptr) {
+        std::cout << "account list is NULL!" << endl;
+    }
+
     *(bankptr->get_account_list()) = rollback_status.get_snapshot_list();
 
     // Trim the status vector to most recent status, from the back

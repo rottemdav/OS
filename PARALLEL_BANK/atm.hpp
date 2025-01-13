@@ -36,6 +36,7 @@ class ATM {
     pthread_mutex_t close_mutex; // for the self closing operation
 
     public:
+        //Log* log_ptr;  // Pointer to the log object
         // Constructor
         ATM(Bank* bank,VipQueue* vip_queue,const string& dir, int id, bool is_active, Log* log, bool close_req)
             : bankptr(bank),vipptr(vip_queue), path(dir), atm_id(id), is_active(is_active), log_ptr(log), close_req(close_req)
@@ -91,6 +92,7 @@ class ATM {
         int get_id() const { return atm_id; }
         bool get_close_req() const {return close_req;}
         bool get_is_active() const {return is_active;}
+        Log* get_log_ptr() const {return log_ptr;}
         pthread_cond_t* get_close_sig() {return &close_sig;}
 
         //setter

@@ -24,8 +24,8 @@ void Bank::print_to_screen() {
         return tmp1.get_id() < tmp2.get_id();
     });
 
-    std::cout << "\033[1;1H";
-    std::cout << "\033[2J";
+    //std::cout << "\033[1;1H";
+    //std::cout << "\033[2J";
     for (const BankAccount& account : copied_list ) {
         std::cout << "Account " << account.get_id()
                   << " Balance - " << account.get_balance() << "$, "
@@ -60,11 +60,11 @@ void Bank::print_to_screen() {
 void* Bank::print_thread_entry(void* obj) {
     PrintThread* prnt_th =  static_cast<PrintThread*>(obj);
     Bank* bank = prnt_th->bank;
-    bool* finished = prnt_th->finished;
-    while(1) {
+    std::atomic<bool>* finished = prnt_th->finished;
+    while(!finished->load()) {
         //sleep for 0.5 secs
-        sleep(0.5);
-        if (*finished)  {
+        usleep(500000);
+        if (finished->load())  {
             break;
         }
         bank->print_to_screen();
@@ -249,7 +249,7 @@ int Status::get_counter() const {
     return counter;
 }
 
-const std::vector<BankAccount> Status::get_snapshot_list() const {
+const std::vector<BankAccount>& Status::get_snapshot_list() const {
     return snapshot_list;
 }
 

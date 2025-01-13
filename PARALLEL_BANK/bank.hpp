@@ -2,6 +2,7 @@
 #define BANK_H
 
 #include <iostream>
+#include <atomic>
 #include <vector>
 #include <algorithm>
 #include <pthread.h>
@@ -30,7 +31,7 @@ public:
     // getters
     int get_counter() const;
 
-    const std::vector<BankAccount> get_snapshot_list() const;
+    const std::vector<BankAccount>& get_snapshot_list() const;
 
     //setters
     void set_counter(int value);
@@ -105,7 +106,7 @@ public:
 
 struct PrintThread {
     Bank* bank;
-    bool* finished;
+    std::atomic<bool>* finished;
 };
 
 
