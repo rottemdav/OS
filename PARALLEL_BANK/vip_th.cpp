@@ -4,12 +4,21 @@
 
 void VipQueue::push_vip_cmd(Cmd& cmd) {
     // push safely a new vip command to the priritized queue
-    pthread_mutex_lock(&vip_lock);
+    if (pthread_mutex_lock(&vip_lock) != 0) {
+        std::cerr << "Bank error: pthread_mutex_lock failed" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
     vip_queue.push(cmd);
     //std::cout << "pushed new cmd into the queue..." << endl;
-    pthread_cond_signal(&vip_available);
+    if (pthread_cond_signal(&vip_available) != 0 ) {
+        std::cerr << "Bank error: pthread_cond_signal failed" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
     //std::cout << "sent conditional signal..." << endl;
-    pthread_mutex_unlock(&vip_lock);
+    if (pthread_mutex_unlock(&vip_lock) != 0) {
+        std::cerr << "Bank error: pthread_mutex_unlock failed" << std::endl;
+        std::exit(EXIT_FAILURE);
+    };
 }
 
 void* VipQueue::vip_thread_entry(void* obj) {
@@ -24,15 +33,24 @@ void VipQueue::vip_worker() {
         Cmd cmd;
         //std::cout << "in worker vip thread" << endl;
         {
-            pthread_mutex_lock(&vip_lock);
+            if (pthread_mutex_lock(&vip_lock) != 0) {
+                std::cerr << "Bank error: pthread_mutex_lock failed" << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
 
             while(vip_queue.empty() && !finish->load()) {
-                pthread_cond_wait(&vip_available, &vip_lock);
+                if (pthread_cond_wait(&vip_available, &vip_lock) != 0) {
+                    std::cerr << "Bank error: pthread_cond_wait failed" << std::endl;
+                    std::exit(EXIT_FAILURE);
+                }
                 //std::cout << "got the conditional signal!" << endl;
             }
 
             if (finish->load() && vip_queue.empty()) {
-                pthread_mutex_unlock(&vip_lock);
+                if (pthread_mutex_unlock(&vip_lock) != 0) {
+                    std::cerr << "Bank error: pthread_mutex_unlock failed" << std::endl;
+                    std::exit(EXIT_FAILURE);
+                }
                 return;
             }
 

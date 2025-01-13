@@ -24,9 +24,9 @@ class Status {
     int counter;
 
 public:
-
+    MultiLock snapshot_lock;
     // C'tor
-    Status(int idx_val, int counter): snapshot_list(), idx(idx_val), counter(counter+1) {};
+    Status(int idx_val, int counter): snapshot_list(), idx(idx_val), counter(counter) {};
 
     // getters
     int get_counter() const;
@@ -36,7 +36,7 @@ public:
     //setters
     void set_counter(int value);
 
-    void set_snapshot_list(std::vector<BankAccount>& new_list );
+    void set_snapshot_list(const std::vector<BankAccount>& new_list );
 
 };
 
@@ -54,6 +54,7 @@ private:
     // Locks for lists
     MultiLock account_list_lock;
     MultiLock atm_list_lock;
+    MultiLock rb_lock;
 
 public: 
 
@@ -91,9 +92,13 @@ public:
 
     std::vector<BankAccount>* get_account_list() const;
 
+    std::vector<BankAccount>* get_account_list();
+
     MultiLock* get_account_list_lock();
 
-    std::vector<Status> get_status_vector();
+    MultiLock* get_rb_lock();
+
+    std::vector<Status>& get_status_vector();
 
     int get_close_req_num();
 

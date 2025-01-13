@@ -25,14 +25,17 @@ void* ATM::thread_entry(void* obj) {
 }
 
 void ATM::read_file() {
+    //std::cout << "ATM " << atm_id << " is now active" << std::endl;
     std::string line;
     std::ifstream cmd_file(path);
     if (!cmd_file.is_open()) {
-        std::cerr << "error opening the file" << std::endl;
-        return ;
+        std::cerr << "Bank error: fopen failed" << std::endl;
+        std::exit(EXIT_FAILURE);
+        
     }
 
     while (std::getline(cmd_file, line)) {
+        //std::cout << "ATM " << atm_id << " is now processing: " << line << std::endl;
         Cmd cmd = parse_cmd(line); // need to implement new
         cmd.atm_id = this->atm_id;
 
@@ -46,16 +49,27 @@ void ATM::read_file() {
 
         // Check for shut down signal from the bank
         if (close_req == true) { 
+            //std::cout << "ATM " << atm_id << " received a close signal" << std::endl;
             // switch the flag
-            pthread_mutex_lock(&close_mutex);
+            if (pthread_mutex_lock(&close_mutex) != 0) {
+                std::cerr << "Bank error: pthread_mutex_lock failed" << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
             is_active = false;
             // send a signal back to the bank that the atm is closed
-            pthread_cond_signal(&close_sig);
-            pthread_mutex_unlock(&close_mutex);
+            if (pthread_cond_signal(&close_sig) != 0) {
+                std::cerr << "Bank error: pthread_cond_signal failed" << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
+            if (pthread_mutex_unlock(&close_mutex ) != 0) {
+                std::cerr << "Bank error: pthread_mutex_unlock failed" << std::endl;
+                std::exit(EXIT_FAILURE);
+            }
 
         }
 
     }
+    is_active = false;
         // finished go through the file or got interrupted - either way close the file
     cmd_file.close();
 }
@@ -63,7 +77,7 @@ void ATM::read_file() {
 Cmd ATM::parse_cmd(string command_line) {
     Cmd cmd;
     if (command_line.empty()) {
-        std::cerr << "Error: empty command line." << std::endl;
+        std::cerr << "Bank error: illegal arguments" << std::endl;
         std::exit(EXIT_FAILURE);
     }
     std::istringstream stream(command_line);
@@ -99,7 +113,7 @@ Cmd ATM::parse_cmd(string command_line) {
     }
     cmd.is_persistent = is_persistant;
     cmd.vip_lvl = vip_lvl;
-    cmd.atm_id = this->atm_id; // to be changed in the read_file() function
+    cmd.atm_id = this->atm_id; // 
     cmd.atm = this;
     return cmd;
 
@@ -112,7 +126,10 @@ void ATM::exe_cmd(Cmd cmd) {
 
     if (cmd.vip_lvl == 0) {
         // ATM wake up 100ms
-        sleep(0.1);
+        if ( usleep(100000) == -1 ) {
+            std::cerr << "Bank error: sleep failed" << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
     }
     
     // If command has persistent it will run twice in case failed
@@ -239,7 +256,10 @@ void ATM::exe_cmd(Cmd cmd) {
     }
 
       //sleep for 1 sec
-        sleep(1);
+    if (usleep(1000000) == -1) { // 1000000 microseconds = 1 second
+        std::cerr << "Bank error: usleep failed with error " << errno << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
     
 
 } // end parse_comand
@@ -247,21 +267,14 @@ void ATM::exe_cmd(Cmd cmd) {
 // Open account - write to account list
 int ATM::O(int id, int pwd, int init_amount, bool is_per){
     // Lock account-list read
-    
-    bankptr->get_account_list_lock()->enter_read();
+    bankptr->get_account_list_lock()->enter_write();
     if (bankptr->account_exists(id) != 1){
-        bankptr->get_account_list_lock()->exit_read();
-        
-        // Enter write mode in account list
-        bankptr->get_account_list_lock()->enter_write();
-        if (bankptr->account_exists(id) == 1) {
-            
-        }
         
         // Initialize an account and insert to list 
         BankAccount new_account(id, pwd, init_amount);
         bankptr->get_account_list()->push_back(new_account);
-        
+
+        bankptr->get_account_list_lock()->exit_write();
 
         // Write to log
         std::string success = std::to_string(atm_id) + ": New account id id " + 
@@ -271,11 +284,10 @@ int ATM::O(int id, int pwd, int init_amount, bool is_per){
         log_ptr->write_to_log(success);
 
         // Exit write mode 
-        bankptr->get_account_list_lock()->exit_write();
         return SUCCESS;
     } else {
-        // Release list lock, format error message and print error
-        bankptr->get_account_list_lock()->exit_read();
+        // Account already exists
+        bankptr->get_account_list_lock()->exit_write();
         std::string failure = "Error " + std::to_string(atm_id) +
                     ": Your transaction failed - account with the same id exists";
         if (is_per == false)
@@ -367,6 +379,7 @@ int ATM::W(int id, int pwd, int amount, bool is_per){
                 
                 // Finished operation so release account lock
                 acc_to_with->get_acc_lock()->exit_write();
+                //bankptr->get_account_list_lock()->exit_read();
 
                 // Write success to log
                 std::string success = std::to_string(atm_id) + ": Account " +
@@ -380,6 +393,7 @@ int ATM::W(int id, int pwd, int amount, bool is_per){
             } else{
                 // Exit write and print error
                 acc_to_with->get_acc_lock()->exit_write();
+                //bankptr->get_account_list_lock()->exit_read();
                 std::string failure = "Error " + std::to_string(atm_id) +
                                       ": Your transaction failed - account id " +
                                       std::to_string(id) + " balance is lower than " +
@@ -602,51 +616,60 @@ int ATM::T(int source_id, int pwd, int target_id, int amount, bool is_per){
 
 // Close ATM
 int ATM::C(int target_atm_id, bool is_per){
-    // the whole implementation is in the bank. 
+    // the whole implementation is in the bank.
+    //std::cout << "close atm" << endl; 
     int close_status = bankptr->close_atm(atm_id, target_atm_id, is_per);
     return close_status;
 }
 
 // Rollback to the status {iterations} back 
 int ATM::R(int iteration, bool is_per){
-    unsigned int it = static_cast<unsigned int>(iteration);
+   // std::cout << "rollback in action" << endl;
+
+    bankptr->get_rb_lock()->enter_write();
+    int status_vector_size = static_cast<int>(bankptr->get_status_vector().size());
+
     // Calculate the requsted iteration
-    unsigned int rollback_index = bankptr->get_status_vector().size()- 1 - iteration;
+    int rollback_index = static_cast<int>(bankptr->get_status_vector().size()) - 1 - iteration;
 
     // If there is no such iteration do nothing
-    if (rollback_index < 0 || it > bankptr->get_status_vector().size()- 1) {
+    if (rollback_index < 0 || iteration > status_vector_size) {
         return FAILURE;
     }
-    
    
     // Aquire account list write lock
     bankptr->get_account_list_lock()->enter_write();
+
+
+    /*std::cout << "rollback starts! size of the rollback_db: "
+              << std::to_string(bankptr->get_status_vector().size()) << endl;*/
    
     // Aquire the required status
-    Status& rollback_status = bankptr->get_status_vector()[rollback_index];
+    Status rollback_status = bankptr->get_status_vector()[rollback_index];
     
-    // Replace the current account list with the snapshot
-    if (rollback_status.get_snapshot_list().empty()) {
-        std::cout << "snap list is NULL!" << endl;
+    std::vector<BankAccount> acc_snapshot = rollback_status.get_snapshot_list();
+
+    bankptr->get_account_list()->clear();
+
+    for (auto it = acc_snapshot.begin(); it != acc_snapshot.end(); it++){
+        bankptr->get_account_list()->push_back(*it);
     }
-
-    if (bankptr->get_account_list() == nullptr) {
-        std::cout << "account list is NULL!" << endl;
-    }
-
-    *(bankptr->get_account_list()) = rollback_status.get_snapshot_list();
-
-    // Trim the status vector to most recent status, from the back
-    while (bankptr->get_status_vector().size() > rollback_index + 1)
-        bankptr->get_status_vector().pop_back();
 
     // Release the write lock
     bankptr->get_account_list_lock()->exit_write();
+
+    bankptr->get_status_vector().erase(  bankptr->get_status_vector().end() - iteration,   bankptr->get_status_vector().end());
+
+
+    /*std::cout << "rollback completed! new size of the rollback_db: "
+              << std::to_string(bankptr->get_status_vector().size()) << endl;*/
     
     // Format the message
     std::string success = std::to_string(atm_id) + ": Rollback to " + 
-                          std::to_string(iteration) + "bank iterations ago was" +
+                          std::to_string(iteration) + " bank iterations ago was " +
                           "completed successfully";
+
+    bankptr->get_rb_lock()->exit_write();
 
     log_ptr->write_to_log(success);
 

@@ -7,7 +7,10 @@
 
 
 int main(int argc, char* argv[]){
-    // Input:
+    if (argc < 3 || atoi(argv[1]) < 0) {
+        std::cerr << "Bank error: illegal arguments" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
     // ./bank <number of VIP threads> <ATM input file 1> <ATM input file 2> ...
     std::atomic<bool> finish(false);
 
@@ -25,12 +28,13 @@ int main(int argc, char* argv[]){
 
         for (int i = 0; i < vip_accounts; i++){
         int ret = pthread_create(&vip_threads[i], nullptr, VipQueue::vip_thread_entry, &vip_queue);
-        if (ret != 0) {
-        //std::cou << "Error creating thread " << i << std::endl;
+        if (ret != 0) { 
+            std::cerr << "Bank error: pthread_create failed" << std::endl;
+            std::exit(EXIT_FAILURE);
         } else {
         //std::cou << "vip_thread num: " << i << " created." << std::endl;
         }
-    }
+        }
     }
     
 
@@ -46,7 +50,10 @@ int main(int argc, char* argv[]){
 
     PrintThread prnt_th{&bank, &finish};
     pthread_t printer_thread;
-    pthread_create(&printer_thread, nullptr, Bank::print_thread_entry, &prnt_th);
+    if (pthread_create(&printer_thread, nullptr, Bank::print_thread_entry, &prnt_th) != 0) {
+        std::cerr << "Bank error: pthread_create failed" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
 
     for (int i = 2; i < argc; i++){
         std::string file_path = argv[i];
@@ -58,36 +65,49 @@ int main(int argc, char* argv[]){
         // create matching thread and run every atm in a separte thread
             //thread.emplace_back();
         pthread_t thread;
-        pthread_create(&thread, nullptr, ATM::thread_entry, &atm_list.back());
+        if (pthread_create(&thread, nullptr, ATM::thread_entry, &atm_list.back()) != 0) {
+            std::cerr << "Bank error: pthread_create failed" << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
         threads.push_back(thread);
     }
 
     // main thread waits for the thread at thread[i] to finish execution
     // join all atm threads
     for (auto &th : threads) {
-        pthread_join(th, nullptr);
+        if (pthread_join(th, nullptr) != 0) {
+            std::cerr << "Bank error: pthread_join failed" << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
     }
 
     finish.store(true);
 
-    pthread_mutex_lock(&vip_queue.get_vip_lock());
-    pthread_cond_broadcast(&vip_queue.get_cond_sig());
-    pthread_mutex_unlock(&vip_queue.get_vip_lock());
-
+    if (pthread_mutex_lock(&vip_queue.get_vip_lock()) != 0) {
+        std::cerr << "Bank error: pthread_mutex_lock failed" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    if (pthread_cond_broadcast(&vip_queue.get_cond_sig()) != 0) {
+        std::cerr << "Bank error: pthread_cond_broadcast failed" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    if (pthread_mutex_unlock(&vip_queue.get_vip_lock()) != 0) {
+        std::cerr << "Bank error: pthread_mutex_unlock failed" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
 
        //join all vip threads
     for (pthread_t& thread: vip_threads) {
-        pthread_join(thread, nullptr);
+        if (pthread_join(thread, nullptr) != 0) {
+            std::cerr << "Bank error: pthread_join failed" << std::endl;
+            std::exit(EXIT_FAILURE);
+        }
     }
 
-    pthread_join(printer_thread, nullptr);
-
-
-    /*
-    for (size_t i = 0; i < atm_list.size(); i++) {
-        pthread_join(atms[i], nullptr);
-    }*/
-
-    // Do something with the VIP accounts
+    if (pthread_join(printer_thread, nullptr) != 0) {
+        std::cerr << "Bank error: pthread_join failed" << std::endl;
+        std::exit(EXIT_FAILURE);
+    }
+    //std::cout << "exiting bank program, bye!" << endl;
     return 0;
 }

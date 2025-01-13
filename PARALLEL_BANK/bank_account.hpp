@@ -23,6 +23,9 @@ public:
     // Destructor
     ~BankAccount() = default;
 
+    //Assignment OPerator
+    BankAccount& operator = (const BankAccount& other);
+
     // Compare operator
     bool operator==(const BankAccount& other) const;
 

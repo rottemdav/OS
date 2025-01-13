@@ -1,7 +1,39 @@
+3: New account id id 11111 with password 1111 and initial balance 150
+2: New account id id 54321 with password 4321 and initial balance 200
+4: New account id id 33333 with password 3333 and initial balance 400
+5: New account id id 55555 with password 5555 and initial balance 600
 1: New account id id 12345 with password 1234 and initial balance 100
 1: New account id id 12347 with password 1111 and initial balance 99
+2: Account 54321 new balance is 250 after 50 $ was deposited
+3: Account 11111 new balance is 200 after 50 $ was deposited
+5: Account 55555 new balance is 700 after 100 $ was deposited
 1: Account 12345 new balance is 50 after 50 $ was withdrawn
+4: Account 33333 new balance is 250 after 150 $ was withdrawn
+2: Account 54321 new balance is 150 after 100 $ was withdrawn
+3: Account 11111 new balance is 100 after 100 $ was withdrawn
 1: Account 12345 new balance is 62 after 12 $ was deposited
+5: Account 55555 new balance is 500 after 200 $ was withdrawn
+4: Account 33333 new balance is 350 after 100 $ was deposited
 1: Account 12347 new balance is 114 after 15 $ was deposited
-Error 1 Your transaction failed - password for account id 12345 is incorrect
 1: New account id id 12346 with password 234 and initial balance 45
+5: New account id id 66666 with password 6666 and initial balance 700
+2: New account id id 65432 with password 2345 and initial balance 300
+Error 1 Your transaction failed - password for account id 12345 is incorrect
+4: New account id id 44444 with password 4444 and initial balance 500
+3: New account id id 22222 with password 2222 and initial balance 250
+4: Account 44444 new balance is 550 after 50 $ was deposited
+1: Rollback to 2 bank iterations ago was completed successfully
+Error 2 Your transaction failed - account id 65432 does not exist
+Error 3 Your transaction failed - account id 22222 does not exist
+Error 5 Your transaction failed - account id 66666 does not exist
+5: Account 55555 new balance is 400 after 100 $ was withdrawn
+2: Account 54321 new balance is 75 after 75 $ was withdrawn
+4: Account 33333 new balance is 150 after 200 $ was withdrawn
+3: Account 11111 new balance is 25 after 75 $ was withdrawn
+5: Rollback to 4 bank iterations ago was completed successfully
+4: Rollback to 3 bank iterations ago was completed successfully
+2: Account 54321 new balance is 247 after 3 $ was withdrawn
+3: Rollback to 1 bank iterations ago was completed successfully
+2: Account 54321 new balance is 245 after 5 $ was withdrawn
+2: Rollback to 2 bank iterations ago was completed successfully
+Error 2: Your close operation failed - ATM ID 3 is already in a closed state

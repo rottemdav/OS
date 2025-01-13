@@ -6,8 +6,17 @@ BankAccount::BankAccount(int id, int pwd, int balance)
 
 // Copy Constructor
 BankAccount::BankAccount(const BankAccount& other)
-    : acc_id(other.acc_id), acc_pwd(other.acc_pwd), acc_blc(other.acc_blc),
-      account_lock(other.account_lock) {}
+    : acc_id(other.acc_id), acc_pwd(other.acc_pwd), acc_blc(other.acc_blc) {}
+
+BankAccount& BankAccount::operator=(const BankAccount& other) {
+    if (this == &other) {
+        return *this;
+    }
+    acc_id = other.acc_id;
+    acc_pwd = other.acc_pwd;
+    acc_blc = other.acc_blc;
+    return *this;
+}
 
 // Compare operator
 bool BankAccount::operator==(const BankAccount& other) const {
