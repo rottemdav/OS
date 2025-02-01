@@ -14,6 +14,27 @@ void* customRealloc(void* ptr, size_t size);
 * do no edit lines above!
 =============================================================================*/
 
+typedef struct Block
+{
+    size_t size;
+    struct Block* next;
+    bool free;
+} Block;
+
+typedef struct blockList {
+    size_t total_size;
+    size_t allocated_size;
+    Block* block_arr;
+    size_t blocks_num;
+    size_t allocated_blocks;
+
+} blockList;
+
+extern blockList* block_list;
+
+
+ 
+
 /*=============================================================================
 * if writing bonus - uncomment lines below
 =============================================================================*/
@@ -34,16 +55,6 @@ void* customRealloc(void* ptr, size_t size);
 #define SBRK_FAIL (void*)(-1)
 #define ALIGN_TO_MULT_OF_4(x) (((((x) - 1) >> 2) << 2) + 4)
 
-/*=============================================================================
-* Block
-=============================================================================*/
-//suggestion for block usage - feel free to change this
-typedef struct Block
-{
-    size_t size;
-    struct Block* next;
-    bool free;
-} Block;
-extern Block* blockList;
+
 
 #endif // CUSTOM_ALLOCATOR
