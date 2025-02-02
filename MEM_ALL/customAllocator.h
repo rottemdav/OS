@@ -6,6 +6,11 @@
 =============================================================================*/
 #include <stddef.h> //for size_t
 #include <stdbool.h> //for bool
+#include <unistd.h> //for sbrk
+#include <errno.h> //for errno
+#include <string.h> //for memcpy
+#include <stdio.h> //for perror
+#include <stdint.h> //for intptr_t
 
 void* customMalloc(size_t size);
 void customFree(void* ptr);
@@ -31,7 +36,7 @@ typedef struct blockList {
 
 } blockList;
 
-extern blockList* block_list;
+//extern blockList* block_list;
 
 
  

@@ -1,14 +1,17 @@
+#define _DEFAULT_SOURCE
 #include "customAllocator.h"
-#include <unistd.h>
 #include <stdlib.h>
-#include <errno.h>
-#include <string.h>
 
 // use of blockList to create the linked list
 // when the program executes there's always a program break
 
 // get the current program break
 //void* initial_prog_brk = sbrk(0);
+
+// Forwared declaration of helper functions
+static Block* findFirstFreeBlock(size_t size);
+bool areAdjacentBlocks(Block* block1, Block* block2);
+void freeAllMemory();
 
 // Create a blockList to store the blocks - set as static object
 static void* initial_prog_brk = NULL;
@@ -17,7 +20,7 @@ static blockList* block_list = NULL;
 __attribute__((constructor)) 
 static void initAlloctor(void){
     // Save the initial program break
-    initial_prog_brk = sbrk(0);
+    initial_prog_brk = (void*)sbrk(0);
     block_list = (blockList*)sbrk(sizeof(blockList));
     if (block_list == SBRK_FAIL) {
         perror("error"); // need to change to the correct print
@@ -29,18 +32,6 @@ static void initAlloctor(void){
     block_list->blocks_num = 0;
     block_list->allocated_blocks = 0;
 }
-
-// // assign the program break to the block list pointer and initialize the size to 0
-// block_list = (blockList*)sbrk(sizeof(blockList));
-// if (block_list == SBRK_FAIL) {
-//     perror("error"); // need to change to the correct print
-// }
-// block_list->block_arr = NULL;
-// block_list->total_size = 0;
-// block_list->allocated_size = 0;
-// block_list->blocks_num = 0;
-// block_list->allocated_blocks = 0;
-
 
 void* customMalloc(size_t size) {
     // check for incorrect parameters
@@ -60,14 +51,14 @@ void* customMalloc(size_t size) {
         Block* match_block = free_block;
         // go through all of the blocks
         Block* block_it = block_list->block_arr;
-        while (block_it->next != NULLL) {
+        while (block_it->next != NULL) {
             if (block_it->free) {
                 size_t curr_size_diff = block_it->size - size;
                 if(curr_size_diff < size_diff && curr_size_diff >= size) { // found closer block from the default
                     match_block = block_it;
                 } 
             }
-            block_it = bllock_it->next;
+            block_it = block_it->next;
         }
 
     match_block->free = false;
@@ -79,13 +70,7 @@ void* customMalloc(size_t size) {
     } else {
         // the block list is empty or any existing block didn't match, so we need to allocate new
         // increment the size of the program break by size bytes
-        size_t aligned_size = ALIGN_TO_MULT_OF_4(size)
-        //void* new_prog_brk = sbrk(aligned_size);
-        if (new_prog_brk == SBRK_FAIL) {
-            perror("error"); // change the to correct printing
-        }
-
-        //  (Block*)p + 1 
+        size_t aligned_size = ALIGN_TO_MULT_OF_4(size); 
 
         //creates new block to assign
         Block* new_block = (Block*)sbrk(sizeof(Block) + aligned_size);
@@ -97,7 +82,7 @@ void* customMalloc(size_t size) {
         new_block->next = NULL;
         new_block->free = false;
 
-        if(block_list->list_size > 0) {
+        if (block_list->total_size > 0) {
             Block* block_it = block_list->block_arr;
             while(block_it->next != NULL) {
                 block_it = block_it->next;
