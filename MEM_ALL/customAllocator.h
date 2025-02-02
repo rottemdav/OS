@@ -5,6 +5,7 @@
 * do no edit lines below!
 =============================================================================*/
 #include <stddef.h> //for size_t
+#include <stdbool.h> //for bool
 
 void* customMalloc(size_t size);
 void customFree(void* ptr);

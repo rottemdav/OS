@@ -9,8 +9,8 @@ all: $(TARGET)
 $(TARGET): $(OBJS)
 $(CC) $(CFLAGS) -o $(OBJS)
 
-custom_Allocator.o: custom_Allocator.c custom_Allocator.h
-$(CC) $(CFLAGS) -o custom_Allocator.c
+custom_Allocator.o: customAllocator.c customAllocator.h
+$(CC) $(CFLAGS) -o customAllocator.c
 
 clean: 
 rm -f $(OBJS) $(TARGET)
