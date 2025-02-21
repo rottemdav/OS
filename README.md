@@ -1,27 +1,55 @@
-Operating Systems Projects
-This repository contains three major projects developed as part of the Operating Systems Structure course. Each project explores fundamental OS concepts, including process management, parallelism, and memory allocation.
+# 🚀 Operating Systems Projects
 
-1. SMASH (Simple Shell)
-A custom shell implementation that supports:
+This repository contains three major projects developed as part of the **Operating Systems Structure** course. Each project explores fundamental OS concepts, including process management, parallelism, and memory allocation.
 
-Internal commands (built-in functionalities similar to common Linux shell commands).
-Execution of external commands by interfacing with the Linux operating system.
-Learning Objectives:
-Process creation and management using fork and exec.
-Handling signals (e.g., SIGINT, SIGCHLD) for job control.
-Implementing job handling features like background execution and process suspension.
-2. PARALLEL_BANK (Multithreaded Bank System)
-A parallel banking system that processes transactions from multiple ATMs. The program reads input files (ATM_{ATM_NUM}.txt), where each ATM has a set of commands to execute concurrently.
+---
 
-Learning Objectives:
-Implementing thread synchronization using mutexes to avoid race conditions.
-Managing shared resources safely in a multithreaded environment.
-Optimizing parallel execution for efficiency.
-3. MEM_ALL (Custom Memory Allocator)
-A low-level memory allocator that serves as an alternative to the standard malloc family of functions.
+## 📌 Table of Contents
+- [SMASH - Custom Shell](#-smash-custom-shell)
+- [PARALLEL_BANK - Multithreaded Bank System](#-parallel_bank-multithreaded-bank-system)
+- [MEM_ALL - Custom Memory Allocator](#-mem_all-custom-memory-allocator)
+- [📦 Installation & Usage](#-installation--usage)
+- [📜 License](#-license)
 
-Learning Objectives:
-Understanding heap memory management and dynamic allocation.
-Implementing custom allocation strategies for efficient memory usage.
-Handling memory fragmentation and implementing best-fit/worst-fit allocation techniques.
-Each project is structured to demonstrate key operating system principles, with well-documented code to help users understand the implementation.
+---
+
+## 🖥️ **SMASH - Custom Shell**
+A lightweight Linux shell that supports:
+- 🛠️ **Internal Commands** (Built-in shell features)
+- 🔄 **Execution of External Commands**  
+- 🎯 **Process Management** (Foreground & Background jobs)
+- 🚨 **Signal Handling** (e.g., `SIGINT`, `SIGCHLD`)
+
+### 📚 Learning Objectives:
+✅ Process creation and management using `fork` and `exec`  
+✅ Implementing job control features  
+✅ Handling Unix signals  
+
+---
+
+## 💰 **PARALLEL_BANK - Multithreaded Bank System**
+A concurrent banking system that processes transactions from multiple ATMs.  
+The program reads input files (`ATM_{ATM_NUM}.txt`), where each ATM executes a set of commands **in parallel**.
+
+### 📚 Learning Objectives:
+✅ Implement **thread synchronization** using **mutexes**  
+✅ Prevent **race conditions** in a multithreaded environment  
+✅ Optimize **parallel execution** for efficiency  
+
+---
+
+## 🔢 **MEM_ALL - Custom Memory Allocator**
+A low-level memory allocator that serves as an alternative to the `malloc` family of functions.
+
+### 📚 Learning Objectives:
+✅ Manage **heap memory** and dynamic allocation  
+✅ Implement **efficient memory usage strategies**  
+✅ Address **memory fragmentation**  
+
+---
+
+## 📦 **Installation & Usage**
+### 🔧 Compilation
+```bash
+gcc -o smash smash.c -Wall -Wextra
+./smash
